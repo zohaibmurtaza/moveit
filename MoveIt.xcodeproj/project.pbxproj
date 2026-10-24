@@ -1,0 +1,394 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* MoveItApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000001 /* MoveItApp.swift */; };
+		A10000000000000000000002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000002 /* AppDelegate.swift */; };
+		A10000000000000000000003 /* MenuBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000003 /* MenuBarView.swift */; };
+		A10000000000000000000004 /* PermissionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000004 /* PermissionsView.swift */; };
+		A10000000000000000000005 /* ActivityEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000005 /* ActivityEngine.swift */; };
+		A10000000000000000000006 /* Humanization.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000006 /* Humanization.swift */; };
+		A10000000000000000000007 /* MouseSimulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000007 /* MouseSimulator.swift */; };
+		A10000000000000000000008 /* KeyboardSimulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000008 /* KeyboardSimulator.swift */; };
+		A10000000000000000000009 /* VirtualHIDDevice.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000009 /* VirtualHIDDevice.swift */; };
+		A1000000000000000000000A /* HIDDescriptors.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000A /* HIDDescriptors.swift */; };
+		A1000000000000000000000B /* Permissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000B /* Permissions.swift */; };
+		A1000000000000000000000C /* LaunchAtLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000C /* LaunchAtLogin.swift */; };
+		A1000000000000000000000D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000000D /* Assets.xcassets */; };
+		A10000000000000000000014 /* moveit-icon.icon in Resources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000014 /* moveit-icon.icon */; };
+		A10000000000000000000011 /* IdleMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000011 /* IdleMonitor.swift */; };
+		A10000000000000000000012 /* ControlsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000012 /* ControlsView.swift */; };
+		A10000000000000000000013 /* ControlWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000013 /* ControlWindowView.swift */; };
+		A10000000000000000000015 /* AppAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000015 /* AppAppearance.swift */; };
+		A10000000000000000000016 /* WindowAccessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000016 /* WindowAccessor.swift */; };
+		A10000000000000000000017 /* WelcomeGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000017 /* WelcomeGuideView.swift */; };
+		A10000000000000000000019 /* MenuBarIconOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000019 /* MenuBarIconOption.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		C10000000000000000000001 /* MoveIt.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MoveIt.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B10000000000000000000001 /* MoveItApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoveItApp.swift; sourceTree = "<group>"; };
+		B10000000000000000000002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		B10000000000000000000003 /* MenuBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarView.swift; sourceTree = "<group>"; };
+		B10000000000000000000004 /* PermissionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsView.swift; sourceTree = "<group>"; };
+		B10000000000000000000005 /* ActivityEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityEngine.swift; sourceTree = "<group>"; };
+		B10000000000000000000006 /* Humanization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Humanization.swift; sourceTree = "<group>"; };
+		B10000000000000000000007 /* MouseSimulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MouseSimulator.swift; sourceTree = "<group>"; };
+		B10000000000000000000008 /* KeyboardSimulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardSimulator.swift; sourceTree = "<group>"; };
+		B10000000000000000000009 /* VirtualHIDDevice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VirtualHIDDevice.swift; sourceTree = "<group>"; };
+		B1000000000000000000000A /* HIDDescriptors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HIDDescriptors.swift; sourceTree = "<group>"; };
+		B1000000000000000000000B /* Permissions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Permissions.swift; sourceTree = "<group>"; };
+		B1000000000000000000000C /* LaunchAtLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLogin.swift; sourceTree = "<group>"; };
+		B1000000000000000000000D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B1000000000000000000000E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B1000000000000000000000F /* MoveIt.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MoveIt.entitlements; sourceTree = "<group>"; };
+		B10000000000000000000010 /* MoveIt-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MoveIt-Bridging-Header.h"; sourceTree = "<group>"; };
+		B10000000000000000000011 /* IdleMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdleMonitor.swift; sourceTree = "<group>"; };
+		B10000000000000000000012 /* ControlsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlsView.swift; sourceTree = "<group>"; };
+		B10000000000000000000013 /* ControlWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlWindowView.swift; sourceTree = "<group>"; };
+		B10000000000000000000014 /* moveit-icon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer; path = "moveit-icon.icon"; sourceTree = "<group>"; };
+		B10000000000000000000018 /* Version.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Version.xcconfig; sourceTree = "<group>"; };
+		B10000000000000000000015 /* AppAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAppearance.swift; sourceTree = "<group>"; };
+		B10000000000000000000016 /* WindowAccessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowAccessor.swift; sourceTree = "<group>"; };
+		B10000000000000000000017 /* WelcomeGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeGuideView.swift; sourceTree = "<group>"; };
+		B10000000000000000000019 /* MenuBarIconOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIconOption.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		D10000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		E10000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				E1000000000000000000000A /* Config */,
+				E1000000000000000000000B /* Design */,
+				E10000000000000000000002 /* MoveIt */,
+				E10000000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		E1000000000000000000000A /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000018 /* Version.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		E1000000000000000000000B /* Design */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000014 /* moveit-icon.icon */,
+			);
+			path = Design;
+			sourceTree = "<group>";
+		};
+		E10000000000000000000002 /* MoveIt */ = {
+			isa = PBXGroup;
+			children = (
+				E10000000000000000000004 /* App */,
+				E10000000000000000000005 /* UI */,
+				E10000000000000000000006 /* Engine */,
+				E10000000000000000000007 /* HID */,
+				E10000000000000000000008 /* Support */,
+				E10000000000000000000009 /* Resources */,
+				B1000000000000000000000F /* MoveIt.entitlements */,
+			);
+			path = MoveIt;
+			sourceTree = "<group>";
+		};
+		E10000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C10000000000000000000001 /* MoveIt.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E10000000000000000000004 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000001 /* MoveItApp.swift */,
+				B10000000000000000000002 /* AppDelegate.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		E10000000000000000000005 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000003 /* MenuBarView.swift */,
+				B10000000000000000000004 /* PermissionsView.swift */,
+				B10000000000000000000012 /* ControlsView.swift */,
+				B10000000000000000000013 /* ControlWindowView.swift */,
+				B10000000000000000000017 /* WelcomeGuideView.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		E10000000000000000000006 /* Engine */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000005 /* ActivityEngine.swift */,
+				B10000000000000000000006 /* Humanization.swift */,
+				B10000000000000000000007 /* MouseSimulator.swift */,
+				B10000000000000000000008 /* KeyboardSimulator.swift */,
+				B10000000000000000000011 /* IdleMonitor.swift */,
+			);
+			path = Engine;
+			sourceTree = "<group>";
+		};
+		E10000000000000000000007 /* HID */ = {
+			isa = PBXGroup;
+			children = (
+				B10000000000000000000009 /* VirtualHIDDevice.swift */,
+				B1000000000000000000000A /* HIDDescriptors.swift */,
+			);
+			path = HID;
+			sourceTree = "<group>";
+		};
+		E10000000000000000000008 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				B1000000000000000000000B /* Permissions.swift */,
+				B1000000000000000000000C /* LaunchAtLogin.swift */,
+				B10000000000000000000010 /* MoveIt-Bridging-Header.h */,
+				B10000000000000000000015 /* AppAppearance.swift */,
+				B10000000000000000000016 /* WindowAccessor.swift */,
+				B10000000000000000000019 /* MenuBarIconOption.swift */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
+		E10000000000000000000009 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B1000000000000000000000D /* Assets.xcassets */,
+				B1000000000000000000000E /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		F10000000000000000000001 /* MoveIt */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F10000000000000000000004 /* Build configuration list for PBXNativeTarget "MoveIt" */;
+			buildPhases = (
+				F10000000000000000000002 /* Sources */,
+				D10000000000000000000001 /* Frameworks */,
+				F10000000000000000000003 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MoveIt;
+			productName = MoveIt;
+			productReference = C10000000000000000000001 /* MoveIt.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F10000000000000000000005 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					F10000000000000000000001 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = F10000000000000000000006 /* Build configuration list for PBXProject "MoveIt" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = E10000000000000000000001;
+			productRefGroup = E10000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F10000000000000000000001 /* MoveIt */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		F10000000000000000000003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000000000000000000000D /* Assets.xcassets in Resources */,
+				A10000000000000000000014 /* moveit-icon.icon in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		F10000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* MoveItApp.swift in Sources */,
+				A10000000000000000000002 /* AppDelegate.swift in Sources */,
+				A10000000000000000000003 /* MenuBarView.swift in Sources */,
+				A10000000000000000000004 /* PermissionsView.swift in Sources */,
+				A10000000000000000000005 /* ActivityEngine.swift in Sources */,
+				A10000000000000000000006 /* Humanization.swift in Sources */,
+				A10000000000000000000007 /* MouseSimulator.swift in Sources */,
+				A10000000000000000000008 /* KeyboardSimulator.swift in Sources */,
+				A10000000000000000000009 /* VirtualHIDDevice.swift in Sources */,
+				A1000000000000000000000A /* HIDDescriptors.swift in Sources */,
+				A1000000000000000000000B /* Permissions.swift in Sources */,
+				A1000000000000000000000C /* LaunchAtLogin.swift in Sources */,
+				A10000000000000000000011 /* IdleMonitor.swift in Sources */,
+				A10000000000000000000012 /* ControlsView.swift in Sources */,
+				A10000000000000000000013 /* ControlWindowView.swift in Sources */,
+				A10000000000000000000015 /* AppAppearance.swift in Sources */,
+				A10000000000000000000016 /* WindowAccessor.swift in Sources */,
+				A10000000000000000000017 /* WelcomeGuideView.swift in Sources */,
+				A10000000000000000000019 /* MenuBarIconOption.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		F10000000000000000000007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B10000000000000000000018 /* Version.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		F10000000000000000000008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B10000000000000000000018 /* Version.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+			};
+			name = Release;
+		};
+		F10000000000000000000009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "moveit-icon";
+				CODE_SIGN_ENTITLEMENTS = MoveIt/MoveIt.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = MoveIt/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.moveit.MoveIt;
+				PRODUCT_NAME = MoveIt;
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "MoveIt/Support/MoveIt-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		F1000000000000000000000A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = "moveit-icon";
+				CODE_SIGN_ENTITLEMENTS = MoveIt/MoveIt.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = MoveIt/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.moveit.MoveIt;
+				PRODUCT_NAME = MoveIt;
+				SDKROOT = macosx;
+				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "MoveIt/Support/MoveIt-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F10000000000000000000006 /* Build configuration list for PBXProject "MoveIt" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F10000000000000000000007 /* Debug */,
+				F10000000000000000000008 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F10000000000000000000004 /* Build configuration list for PBXNativeTarget "MoveIt" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F10000000000000000000009 /* Debug */,
+				F1000000000000000000000A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = F10000000000000000000005 /* Project object */;
+}

@@ -1,0 +1,46 @@
+# Xcode / Swift
+build/
+DerivedData/
+dist/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Editors / agents
+.idea/
+.vscode/
+*.swp
+*~
+.cursor/
+
+# Scratch / local captures (welcome preview lives in Assets.xcassets)
+screenshot.png
+*.mov
+*.mp4
+
+# Secrets
+*.p12
+*.mobileprovision
+AuthKey_*.p8
+.env
+.env.*

@@ -1,0 +1,24 @@
+# Security & responsible use
+
+## Intended use
+
+MoveIt is for **education and authorized testing** — learning how synthetic input behaves on macOS, demos, and controlled experiments on machines **you own or are allowed to use**.
+
+## Not intended for
+
+- Misrepresenting activity to employers, clients, or schools  
+- Circumventing monitoring without permission  
+- Shipping as malware or an undisclosed helper  
+
+Misuse may violate policy or law. Authors are not responsible for abusive deployments.
+
+## Reporting vulnerabilities
+
+If you find a security issue in MoveIt itself (e.g. unexpected privilege use, unsafe defaults):
+
+1. Prefer a private report to the repository maintainers (GitHub Security Advisory if enabled)  
+2. Include macOS version, MoveIt version (`Config/Version.xcconfig`), and steps to reproduce  
+
+## Permissions
+
+MoveIt requires **Accessibility** to synthesize input. It does not need Full Disk Access. Virtual HID (if ever entitled) uses Apple’s restricted HID entitlement and is optional.

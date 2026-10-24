@@ -1,0 +1,8 @@
+// Single source of truth for app versioning.
+// MARKETING_VERSION = user-facing semver (CFBundleShortVersionString)
+// CURRENT_PROJECT_VERSION = monotonic build number (CFBundleVersion)
+//
+// Bump with: ./Scripts/bump-version.sh [major|minor|patch|build]
+
+MARKETING_VERSION = 1.0.0
+CURRENT_PROJECT_VERSION = 1
