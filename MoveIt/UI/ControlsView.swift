@@ -1,8 +1,10 @@
 import SwiftUI
 import AppKit
 
-private enum ControlsWindowPane: String, CaseIterable, Identifiable {
+private enum ControlsWindowPane: String, CaseIterable, Identifiable, Hashable {
     case activity
+    case keyboard
+    case switching
     case appearance
     case status
 
@@ -11,6 +13,8 @@ private enum ControlsWindowPane: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .activity: return "Activity"
+        case .keyboard: return "Keyboard"
+        case .switching: return "Switching"
         case .appearance: return "Appearance"
         case .status: return "Status"
         }
@@ -19,10 +23,16 @@ private enum ControlsWindowPane: String, CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .activity: return "play.circle"
+        case .keyboard: return "keyboard"
+        case .switching: return "arrow.left.arrow.right"
         case .appearance: return "menubar.rectangle"
         case .status: return "waveform.path.ecg"
         }
     }
+
+    /// Settings-style sidebar groups.
+    static let simulationPanes: [ControlsWindowPane] = [.activity, .keyboard, .switching]
+    static let appPanes: [ControlsWindowPane] = [.appearance, .status]
 }
 
 /// Shared controls used by the main window and the menu bar panel.
@@ -49,159 +59,153 @@ struct ControlsView: View {
         }
     }
 
-    // MARK: - Menu bar dropdown (single column)
+    // MARK: - Menu bar dropdown (essentials only)
 
     private var compactBody: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 0) {
             header(compact: true)
+                .padding(.bottom, 12)
+
+            if !accessibilityTrusted {
+                Divider()
+                PermissionsView(isTrusted: $accessibilityTrusted)
+                    .padding(.vertical, 12)
+            }
 
             Divider()
 
-            PermissionsView(isTrusted: $accessibilityTrusted)
-
-            Divider()
-
-            menuBarIconPicker
+            idleWaitSlider
+                .padding(.vertical, 14)
 
             Divider()
 
             profilePicker
-            intensitySlider
-            idleDebounceSlider
-
-            statusBlock
-
-            launchAtLoginToggle
+                .padding(.vertical, 14)
 
             Divider()
 
-            actionRow
+            intensitySlider
+                .padding(.vertical, 14)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle("Switch apps & windows", isOn: $engine.allowAppNavigation)
+                if engine.allowAppNavigation && engine.switchTargets.isEmpty {
+                    Text("Pick apps in the Switching tab of the main window.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.vertical, 14)
+
+            if engine.isRunning {
+                Divider()
+                statusBlock
+                    .padding(.vertical, 12)
+            }
+
+            Divider()
+
+            compactActionRow
+                .padding(.top, 12)
         }
-        .padding(14)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
     }
 
-    // MARK: - Main window (sidebar + content-sized)
+    // MARK: - Main window
+
+    private static let windowWidth: CGFloat = 720
+    private static let windowHeight: CGFloat = 580
 
     private var windowBody: some View {
-        // Prefer intrinsic height; fall back to a scrolling middle when the
-        // window is shorter than the content (e.g. user resized it down).
-        ViewThatFits(in: .vertical) {
-            windowChrome(scrollMiddle: false)
-            windowChrome(scrollMiddle: true)
-        }
-        .frame(width: 680)
-        .fixedSize(horizontal: true, vertical: true)
-    }
-
-    private func windowChrome(scrollMiddle: Bool) -> some View {
-        VStack(spacing: 0) {
-            windowHeader
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-
-            Divider()
-
-            HStack(alignment: .top, spacing: 0) {
-                windowSidebar
-                    .frame(width: 168, alignment: .top)
+        NavigationSplitView {
+            List(selection: $windowPane) {
+                Section("Simulation") {
+                    ForEach(ControlsWindowPane.simulationPanes) { pane in
+                        Label(pane.title, systemImage: pane.systemImage)
+                            .tag(pane)
+                    }
+                }
+                Section("App") {
+                    ForEach(ControlsWindowPane.appPanes) { pane in
+                        Label(pane.title, systemImage: pane.systemImage)
+                            .tag(pane)
+                    }
+                }
+            }
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 160, ideal: 180, max: 220)
+        } detail: {
+            VStack(spacing: 0) {
+                ScrollView {
+                    windowPaneContent
+                        .padding(20)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
                 Divider()
 
-                Group {
-                    if scrollMiddle {
-                        ScrollView {
-                            windowPaneContent
-                                .padding(20)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    } else {
-                        windowPaneContent
-                            .padding(20)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
+                windowActionRow
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 12)
             }
-
-            Divider()
-
-            actionRow
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+            .navigationTitle(windowPane.title)
+            #if os(macOS)
+            .navigationSubtitle(detailSubtitle)
+            #endif
         }
+        .navigationSplitViewStyle(.balanced)
+        .frame(width: Self.windowWidth, height: Self.windowHeight)
     }
 
-    private var windowHeader: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Image("AppMark")
-                .resizable()
-                .interpolation(.high)
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 40, height: 40)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                .accessibilityHidden(true)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("MoveIt")
-                    .font(.title2.weight(.semibold))
-                Text("Arms after you stop using the mouse/keyboard, then simulates human-like activity.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 12)
-            phaseBadge
+    private var detailSubtitle: String {
+        switch windowPane {
+        case .activity:
+            return "Arms after idle, then simulates human-like activity."
+        case .keyboard:
+            return "Silent keys by default; characters are optional."
+        case .switching:
+            return "Only switch among apps and windows you select."
+        case .appearance:
+            return "Menu bar icon for this Mac."
+        case .status:
+            return "Live stream of past, current, and upcoming actions."
         }
-    }
-
-    private var windowSidebar: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            ForEach(ControlsWindowPane.allCases) { pane in
-                let selected = windowPane == pane
-                Button {
-                    windowPane = pane
-                } label: {
-                    Label(pane.title, systemImage: pane.systemImage)
-                        .labelStyle(.titleAndIcon)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 7)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .fill(selected ? Color.accentColor.opacity(0.18) : Color.clear)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .strokeBorder(selected ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 1)
-                        )
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(selected ? Color.primary : Color.secondary)
-            }
-        }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(Color.primary.opacity(0.03))
     }
 
     @ViewBuilder
     private var windowPaneContent: some View {
         switch windowPane {
         case .activity:
+            activityPane
+        case .keyboard:
             VStack(alignment: .leading, spacing: 16) {
-                sectionTitle("Permissions")
-                PermissionsView(isTrusted: $accessibilityTrusted)
+                keyboardSettings
+            }
+        case .switching:
+            VStack(alignment: .leading, spacing: 16) {
+                Toggle("Switch among selected apps", isOn: $engine.allowAppNavigation)
+                Text(
+                    engine.switchTargets.isEmpty
+                        ? "Select at least two apps below. MoveIt will only switch among those — never the whole Dock via ⌘Tab."
+                        : "Activates your selected apps/windows. Browser tab chords (⌃Tab) only while one of those browsers is frontmost."
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+                if engine.allowAppNavigation {
+                    switchIntervalSliders
+                }
 
                 Divider()
 
-                sectionTitle("Simulation")
-                profilePicker
-                intensitySlider
-                idleDebounceSlider
-
-                Divider()
-
-                launchAtLoginToggle
+                AppSwitchPickerView(targets: $engine.switchTargets)
+                    .disabled(!engine.allowAppNavigation)
+                    .opacity(engine.allowAppNavigation ? 1 : 0.45)
             }
         case .appearance:
             VStack(alignment: .leading, spacing: 16) {
@@ -214,7 +218,16 @@ struct ControlsView: View {
             }
         case .status:
             VStack(alignment: .leading, spacing: 16) {
-                sectionTitle("Live status")
+                sectionTitle("Live activity")
+                ActivityStreamView(
+                    past: engine.pastEvents,
+                    current: engine.currentEvent,
+                    upcoming: engine.upcomingEvents
+                )
+
+                Divider()
+
+                sectionTitle("Details")
                 statusBlock
             }
         }
@@ -225,58 +238,245 @@ struct ControlsView: View {
             .font(.headline)
     }
 
+    /// Activity tab: grouped cards so style / busy / idle / login don’t run together.
+    private var activityPane: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            if !accessibilityTrusted {
+                settingsCard(title: "Permissions") {
+                    PermissionsView(isTrusted: $accessibilityTrusted)
+                }
+            }
+
+            settingsCard(
+                title: "Idle wait",
+                trailing: "\(Int(engine.idleDebounceSeconds))s",
+                footer: "Starts only after you’ve stopped using the Mac for this long."
+            ) {
+                Slider(value: $engine.idleDebounceSeconds, in: 3...120, step: 1)
+            }
+
+            settingsCard(title: "Activity style", footer: engine.profile.detail) {
+                Picker("Activity style", selection: $engine.profile) {
+                    ForEach(ActivityProfile.allCases) { profile in
+                        Text(profile.rawValue).tag(profile)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .disabled(engine.isRunning)
+                .labelsHidden()
+            }
+
+            settingsCard(
+                title: "How busy",
+                trailing: "\(Int(engine.intensityMin * 100))–\(Int(engine.intensityMax * 100))%",
+                footer: "New level every 10 minutes inside this range. Changing Activity style resets it."
+            ) {
+                VStack(alignment: .leading, spacing: 14) {
+                    labeledSlider(
+                        title: "Quietest",
+                        valueLabel: "\(Int(engine.intensityMin * 100))%",
+                        value: $engine.intensityMin,
+                        range: 0.2...1.0,
+                        step: 0.05
+                    )
+                    labeledSlider(
+                        title: "Busiest",
+                        valueLabel: "\(Int(engine.intensityMax * 100))%",
+                        value: $engine.intensityMax,
+                        range: 0.2...1.0,
+                        step: 0.05
+                    )
+
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(Color.accentColor)
+                            .frame(width: 7, height: 7)
+                        Text("This period")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("\(Int(engine.effectiveIntensity * 100))%")
+                            .font(.caption.weight(.semibold))
+                            .monospacedDigit()
+                        Spacer(minLength: 8)
+                        Text("every 10 min")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary.opacity(0.75))
+                    }
+                    .padding(.top, 2)
+                }
+            }
+
+            settingsCard(title: "Startup") {
+                launchAtLoginToggle
+            }
+        }
+    }
+
+    private func settingsCard<Content: View>(
+        title: String,
+        trailing: String? = nil,
+        footer: String? = nil,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Spacer(minLength: 8)
+                if let trailing {
+                    Text(trailing)
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            content()
+
+            if let footer {
+                Text(footer)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .nativeGlassCard(cornerRadius: 12)
+    }
+
+    private func labeledSlider(
+        title: String,
+        valueLabel: String,
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        step: Double
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(valueLabel)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            Slider(value: value, in: range, step: step)
+        }
+    }
+
     // MARK: - Shared pieces
 
     private func header(compact: Bool) -> some View {
         HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("MoveIt")
-                    .font(compact ? .headline : .title2.weight(.semibold))
-                Text("Activity simulator")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+            Text(BuildIdentity.displayName)
+                .font(compact ? .headline : .title2.weight(.semibold))
             Spacer()
-            phaseBadge
+            phaseStatusLabel
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(phaseColor.opacity(0.15)))
         }
     }
 
     private var profilePicker: some View {
-        Picker("Profile", selection: $engine.profile) {
-            ForEach(ActivityProfile.allCases) { profile in
-                Text(profile.rawValue).tag(profile)
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Activity style")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Picker("Activity style", selection: $engine.profile) {
+                ForEach(ActivityProfile.allCases) { profile in
+                    Text(profile.rawValue).tag(profile)
+                }
             }
+            .pickerStyle(.segmented)
+            .disabled(engine.isRunning)
+            .labelsHidden()
+
+            Text(engine.profile.detail)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .pickerStyle(.segmented)
-        .disabled(engine.isRunning)
     }
 
     private var intensitySlider: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        // Compact menu-bar panel: single stack without cards.
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Intensity")
+                Text("How busy")
                 Spacer()
-                Text("\(Int(engine.intensity * 100))%")
+                Text("\(Int(engine.intensityMin * 100))–\(Int(engine.intensityMax * 100))%")
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
-            Slider(value: $engine.intensity, in: 0.2...1.0, step: 0.05)
+            labeledSlider(
+                title: "Quietest",
+                valueLabel: "\(Int(engine.intensityMin * 100))%",
+                value: $engine.intensityMin,
+                range: 0.2...1.0,
+                step: 0.05
+            )
+            labeledSlider(
+                title: "Busiest",
+                valueLabel: "\(Int(engine.intensityMax * 100))%",
+                value: $engine.intensityMax,
+                range: 0.2...1.0,
+                step: 0.05
+            )
+            Text("This period \(Int(engine.effectiveIntensity * 100))% · every 10 min")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
     }
 
-    private var idleDebounceSlider: some View {
-        VStack(alignment: .leading, spacing: 4) {
+    private var idleWaitSlider: some View {
+        VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Idle debounce")
+                Text("Wait after you go idle")
                 Spacer()
                 Text("\(Int(engine.idleDebounceSeconds))s")
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
             Slider(value: $engine.idleDebounceSeconds, in: 3...120, step: 1)
-            Text("Start moving only after you’ve been idle this long.")
+        }
+    }
+
+    private var switchIntervalSliders: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Min time between switches")
+                    Spacer()
+                    Text("\(Int(engine.switchIntervalMinSeconds))s")
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                Slider(
+                    value: $engine.switchIntervalMinSeconds,
+                    in: 10...max(10, engine.switchIntervalMaxSeconds),
+                    step: 5
+                )
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Max time between switches")
+                    Spacer()
+                    Text("\(Int(engine.switchIntervalMaxSeconds))s")
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                Slider(
+                    value: $engine.switchIntervalMaxSeconds,
+                    in: max(10, engine.switchIntervalMinSeconds)...900,
+                    step: 5
+                )
+            }
+            Text("After each switch, MoveIt waits a random time between min and max before switching again.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -287,44 +487,98 @@ struct ControlsView: View {
             }
     }
 
-    private var actionRow: some View {
-        HStack {
-            if engine.isRunning {
-                Button("Stop") {
-                    engine.stop()
-                }
-                .keyboardShortcut(".", modifiers: [.command])
-            } else {
-                Button("Start") {
-                    refreshPermissions()
-                    if !accessibilityTrusted {
-                        _ = Permissions.ensureAccessibility(prompt: true)
-                        refreshPermissions()
-                        guard accessibilityTrusted else { return }
-                    }
-                    engine.start()
-                }
-                .keyboardShortcut("s", modifiers: [.command])
-                .buttonStyle(.borderedProminent)
-            }
+    private var keyboardSettings: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Toggle("Keyboard activity", isOn: $engine.includeKeyboard)
+            Text(
+                engine.includeKeyboard
+                    ? "Silent modifiers by default (Shift/Control/Option)."
+                    : "Off — mouse & scroll only."
+            )
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
 
-            Spacer()
-
-            Button("Quit") {
-                engine.stop()
-                AppAppearance.quitCompletely()
+            if engine.includeKeyboard {
+                Toggle("Character & number keys", isOn: $engine.allowCharacterKeys)
+                Text(
+                    engine.allowCharacterKeys
+                        ? "Letters, digits, and arrows — skipped automatically while a text field, editor, or terminal is focused."
+                        : "Off — avoid typing into apps and single-key shortcuts."
+                )
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
+    private var compactActionRow: some View {
+        HStack(spacing: 10) {
+            startStopButton(fillWidth: true)
+            quitButton
+        }
+    }
+
+    private var windowActionRow: some View {
+        HStack(spacing: 10) {
+            startStopButton(fillWidth: false)
+            quitButton
+            Spacer(minLength: 8)
+            phaseStatusLabel
+        }
+    }
+
+    @ViewBuilder
+    private func startStopButton(fillWidth: Bool) -> some View {
+        if engine.isRunning {
+            Button {
+                engine.stop()
+            } label: {
+                Label("Stop", systemImage: "stop.fill")
+                    .frame(maxWidth: fillWidth ? .infinity : nil)
+                    .padding(.horizontal, fillWidth ? 0 : 8)
+            }
+            .keyboardShortcut(".", modifiers: [.command])
+            .nativeGlassButton()
+            .tint(.red)
+            .foregroundStyle(.red)
+            .controlSize(.large)
+        } else {
+            Button {
+                refreshPermissions()
+                if !accessibilityTrusted {
+                    _ = Permissions.ensureAccessibility(prompt: true)
+                    refreshPermissions()
+                    guard accessibilityTrusted else { return }
+                }
+                engine.start()
+            } label: {
+                Label("Start", systemImage: "play.fill")
+                    .frame(maxWidth: fillWidth ? .infinity : nil)
+                    .padding(.horizontal, fillWidth ? 0 : 8)
+            }
+            .keyboardShortcut("s", modifiers: [.command])
+            .nativeGlassProminentButton()
+            .controlSize(.large)
+        }
+    }
+
+    private var quitButton: some View {
+        Button {
+            engine.stop()
+            AppAppearance.quitCompletely()
+        } label: {
+            Label("Quit", systemImage: "power")
+                .padding(.horizontal, 4)
+        }
+        .nativeGlassButton()
+        .controlSize(.large)
+        .help("Quit \(BuildIdentity.displayName) completely")
+    }
+
     private var menuBarIconPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
-            if compact {
-                Text("Menu bar icon")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
             LazyVGrid(
                 columns: [GridItem(.adaptive(minimum: 30), spacing: 8)],
                 spacing: 10
@@ -366,23 +620,23 @@ struct ControlsView: View {
                     .accessibilityAddTraits(selected ? .isSelected : [])
                 }
             }
-            // Room for the Default badge so it isn’t clipped.
             .padding(.top, 8)
             .padding(.trailing, 8)
         }
     }
 
-    private var phaseBadge: some View {
+    /// Dot + label only — never a glass/capsule wrapper (toolbar adds its own unless hidden).
+    private var phaseStatusLabel: some View {
         HStack(spacing: 6) {
             Circle()
                 .fill(phaseColor)
                 .frame(width: 8, height: 8)
             Text(engine.phase.rawValue)
                 .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 5)
-        .background(phaseColor.opacity(0.15), in: Capsule())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(engine.phase.rawValue)
     }
 
     private var phaseColor: Color {
@@ -408,7 +662,7 @@ struct ControlsView: View {
         .font(.caption)
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
+        .nativeGlassCard(cornerRadius: 10)
     }
 
     private func labeled(_ title: String, _ value: String) -> some View {

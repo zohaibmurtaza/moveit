@@ -95,6 +95,10 @@ enum SafeHIDKey: UInt8 {
     case downArrow = 0x51
     case upArrow = 0x52
 
+    // Used only inside navigation chords (⌘Tab, ⌃Tab, ⌘`)
+    case tab = 0x2B
+    case grave = 0x35
+
     var isModifier: Bool {
         switch self {
         case .leftControl, .leftShift, .leftOption, .leftCommand,
@@ -139,5 +143,11 @@ enum SafeHIDKey: UInt8 {
             .leftShift, .leftControl, .leftOption, .leftCommand,
             .rightShift, .rightControl, .rightOption, .rightCommand
         ]
+    }
+
+    /// Modifiers that rarely type characters or fire single-key app shortcuts.
+    /// (No Command — that opens menus; no letters/digits/arrows.)
+    static var quietActivityKeys: [SafeHIDKey] {
+        [.leftShift, .rightShift, .leftControl, .rightControl, .leftOption, .rightOption]
     }
 }

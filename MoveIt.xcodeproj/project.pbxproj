@@ -28,6 +28,13 @@
 		A10000000000000000000016 /* WindowAccessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000016 /* WindowAccessor.swift */; };
 		A10000000000000000000017 /* WelcomeGuideView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000017 /* WelcomeGuideView.swift */; };
 		A10000000000000000000019 /* MenuBarIconOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000019 /* MenuBarIconOption.swift */; };
+		A1000000000000000000001A /* BuildIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001A /* BuildIdentity.swift */; };
+		A1000000000000000000001B /* FocusSafety.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001B /* FocusSafety.swift */; };
+		A1000000000000000000001C /* AppSwitching.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001C /* AppSwitching.swift */; };
+		A1000000000000000000001D /* AppSwitchPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001D /* AppSwitchPickerView.swift */; };
+		A1000000000000000000001E /* ActivityEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001E /* ActivityEvent.swift */; };
+		A1000000000000000000001F /* ActivityStreamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001F /* ActivityStreamView.swift */; };
+		A10000000000000000000020 /* NativeGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000020 /* NativeGlass.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -57,6 +64,13 @@
 		B10000000000000000000016 /* WindowAccessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowAccessor.swift; sourceTree = "<group>"; };
 		B10000000000000000000017 /* WelcomeGuideView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WelcomeGuideView.swift; sourceTree = "<group>"; };
 		B10000000000000000000019 /* MenuBarIconOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarIconOption.swift; sourceTree = "<group>"; };
+		B1000000000000000000001A /* BuildIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BuildIdentity.swift; sourceTree = "<group>"; };
+		B1000000000000000000001B /* FocusSafety.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusSafety.swift; sourceTree = "<group>"; };
+		B1000000000000000000001C /* AppSwitching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSwitching.swift; sourceTree = "<group>"; };
+		B1000000000000000000001D /* AppSwitchPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSwitchPickerView.swift; sourceTree = "<group>"; };
+		B1000000000000000000001E /* ActivityEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityEvent.swift; sourceTree = "<group>"; };
+		B1000000000000000000001F /* ActivityStreamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityStreamView.swift; sourceTree = "<group>"; };
+		B10000000000000000000020 /* NativeGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeGlass.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -135,6 +149,8 @@
 				B10000000000000000000012 /* ControlsView.swift */,
 				B10000000000000000000013 /* ControlWindowView.swift */,
 				B10000000000000000000017 /* WelcomeGuideView.swift */,
+				B1000000000000000000001D /* AppSwitchPickerView.swift */,
+				B1000000000000000000001F /* ActivityStreamView.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -147,6 +163,7 @@
 				B10000000000000000000007 /* MouseSimulator.swift */,
 				B10000000000000000000008 /* KeyboardSimulator.swift */,
 				B10000000000000000000011 /* IdleMonitor.swift */,
+				B1000000000000000000001E /* ActivityEvent.swift */,
 			);
 			path = Engine;
 			sourceTree = "<group>";
@@ -169,6 +186,10 @@
 				B10000000000000000000015 /* AppAppearance.swift */,
 				B10000000000000000000016 /* WindowAccessor.swift */,
 				B10000000000000000000019 /* MenuBarIconOption.swift */,
+				B1000000000000000000001A /* BuildIdentity.swift */,
+				B1000000000000000000001B /* FocusSafety.swift */,
+				B1000000000000000000001C /* AppSwitching.swift */,
+				B10000000000000000000020 /* NativeGlass.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -271,6 +292,13 @@
 				A10000000000000000000016 /* WindowAccessor.swift in Sources */,
 				A10000000000000000000017 /* WelcomeGuideView.swift in Sources */,
 				A10000000000000000000019 /* MenuBarIconOption.swift in Sources */,
+				A1000000000000000000001A /* BuildIdentity.swift in Sources */,
+				A1000000000000000000001B /* FocusSafety.swift in Sources */,
+				A1000000000000000000001C /* AppSwitching.swift in Sources */,
+				A1000000000000000000001D /* AppSwitchPickerView.swift in Sources */,
+				A1000000000000000000001E /* ActivityEvent.swift in Sources */,
+				A1000000000000000000001F /* ActivityStreamView.swift in Sources */,
+				A10000000000000000000020 /* NativeGlass.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -329,11 +357,13 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MOVEIT_DISPLAY_NAME = "MoveIt Dev";
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.moveit.MoveIt;
-				PRODUCT_NAME = MoveIt;
+				PRODUCT_BUNDLE_IDENTIFIER = com.moveit.MoveIt.dev;
+				PRODUCT_NAME = "MoveIt Dev";
 				SDKROOT = macosx;
 				SUPPORTED_PLATFORMS = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "MoveIt/Support/MoveIt-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -357,6 +387,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				MOVEIT_DISPLAY_NAME = MoveIt;
 				PRODUCT_BUNDLE_IDENTIFIER = com.moveit.MoveIt;
 				PRODUCT_NAME = MoveIt;
 				SDKROOT = macosx;

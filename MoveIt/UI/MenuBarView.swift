@@ -11,7 +11,7 @@ struct MenuBarView: View {
 
             Divider()
 
-            Button("Open MoveIt Window…") {
+            Button("Open \(BuildIdentity.displayName) Window…") {
                 AppAppearance.showInDock()
                 openWindow(id: "controls")
             }

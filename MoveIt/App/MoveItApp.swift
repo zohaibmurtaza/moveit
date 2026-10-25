@@ -11,7 +11,7 @@ struct MoveItApp: App {
     }
 
     var body: some Scene {
-        Window("MoveIt", id: "controls") {
+        Window(BuildIdentity.displayName, id: "controls") {
             ControlWindowView(engine: engine)
         }
         .windowResizability(.contentSize)
@@ -22,19 +22,33 @@ struct MoveItApp: App {
         MenuBarExtra {
             MenuBarView(engine: engine)
         } label: {
-            // Template / SF Symbols: macOS tints for light/dark menu bar. Keep ~16pt like system glyphs.
-            menuBarIcon.labelImage(size: 16)
-                .opacity(engine.phase == .waitingForIdle ? 0.55 : 1.0)
-                .accessibilityLabel(menuBarAccessibilityLabel)
+            menuBarLabel
         }
         .menuBarExtraStyle(.window)
     }
 
+    private var menuBarLabel: some View {
+        // macOS template status items don't reliably honor fade/opacity — keep solid.
+        ZStack(alignment: .bottomTrailing) {
+            menuBarIcon.labelImage(size: 16)
+
+            if BuildIdentity.isDev {
+                Circle()
+                    .fill(Color.orange)
+                    .frame(width: 4, height: 4)
+                    .offset(x: 2, y: 2)
+            }
+        }
+        .frame(width: 18, height: 18)
+        .accessibilityLabel(menuBarAccessibilityLabel)
+    }
+
     private var menuBarAccessibilityLabel: String {
+        let name = BuildIdentity.displayName
         switch engine.phase {
-        case .stopped: return "MoveIt — Stopped"
-        case .waitingForIdle: return "MoveIt — Waiting for idle"
-        case .simulating: return "MoveIt — Simulating"
+        case .stopped: return "\(name) — Stopped"
+        case .waitingForIdle: return "\(name) — Waiting for idle"
+        case .simulating: return "\(name) — Simulating"
         }
     }
 }

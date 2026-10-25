@@ -7,35 +7,39 @@ struct PermissionsView: View {
     @State private var pollTimer: Timer?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: isTrusted ? "checkmark.shield.fill" : "exclamationmark.shield.fill")
-                    .foregroundStyle(isTrusted ? .green : .orange)
-                Text(isTrusted ? "Accessibility granted" : "Accessibility required")
-                    .font(.callout.weight(.semibold))
-            }
-
+        Group {
             if !isTrusted {
-                Text("Grant Accessibility so MoveIt can inject test input. Enable MoveIt in System Settings, then this status updates automatically.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.shield.fill")
+                            .foregroundStyle(.orange)
+                        Text("Accessibility required")
+                            .font(.callout.weight(.semibold))
+                    }
 
-                HStack(spacing: 8) {
-                    Button("Request Permission", action: requestPermission)
-                        .controlSize(.small)
+                    Text("Grant Accessibility so MoveIt can inject test input. Enable \(BuildIdentity.displayName) in System Settings, then this status updates automatically.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
 
-                    if requestAttempts >= 2 {
-                        Button("Refresh", action: refresh)
+                    HStack(spacing: 8) {
+                        Button("Request Permission", action: requestPermission)
                             .controlSize(.small)
+
+                        if requestAttempts >= 2 {
+                            Button("Refresh", action: refresh)
+                                .controlSize(.small)
+                        }
                     }
                 }
+                .padding(.vertical, 4)
             }
         }
-        .padding(.vertical, 4)
         .onAppear {
             refresh()
-            startPolling()
+            if !isTrusted {
+                startPolling()
+            }
         }
         .onDisappear {
             stopPolling()
@@ -43,6 +47,8 @@ struct PermissionsView: View {
         .onChange(of: isTrusted) { trusted in
             if trusted {
                 stopPolling()
+            } else {
+                startPolling()
             }
         }
     }

@@ -139,6 +139,30 @@ final class VirtualHIDDevice {
         release(key)
     }
 
+    /// Hold modifiers, tap a key, then release (e.g. ⌘Tab, ⌃Tab).
+    func tapChord(
+        modifiers: [SafeHIDKey],
+        key: SafeHIDKey,
+        holdMilliseconds: UInt64 = 45
+    ) {
+        switch backend {
+        case .virtualHID:
+            for modifier in modifiers where modifier.isModifier {
+                press(modifier)
+            }
+            Thread.sleep(forTimeInterval: 0.025)
+            tap(key, holdMilliseconds: holdMilliseconds)
+            for modifier in modifiers.reversed() where modifier.isModifier {
+                release(modifier)
+            }
+            releaseAllKeys()
+        case .cgEvent:
+            postCGChord(modifiers: modifiers, key: key, holdMilliseconds: holdMilliseconds)
+        case .unavailable:
+            break
+        }
+    }
+
     func press(_ key: SafeHIDKey) {
         lock.lock()
         defer { lock.unlock() }
@@ -152,7 +176,7 @@ final class VirtualHIDDevice {
                 sendKeyboardReportLocked(keys: [key.rawValue])
             }
         case .cgEvent:
-            postCGKey(key, keyDown: true)
+            postCGKey(key, keyDown: true, flags: cgFlags(for: [key].filter(\.isModifier)))
         case .unavailable:
             break
         }
@@ -169,7 +193,7 @@ final class VirtualHIDDevice {
             }
             sendKeyboardReportLocked(keys: [])
         case .cgEvent:
-            postCGKey(key, keyDown: false)
+            postCGKey(key, keyDown: false, flags: [])
         case .unavailable:
             break
         }
@@ -267,7 +291,18 @@ final class VirtualHIDDevice {
         }
     }
 
-    private func postCGKey(_ key: SafeHIDKey, keyDown: Bool) {
+    private func postCGChord(
+        modifiers: [SafeHIDKey],
+        key: SafeHIDKey,
+        holdMilliseconds: UInt64
+    ) {
+        let flags = cgFlags(for: modifiers)
+        postCGKey(key, keyDown: true, flags: flags)
+        Thread.sleep(forTimeInterval: TimeInterval(holdMilliseconds) / 1000.0)
+        postCGKey(key, keyDown: false, flags: flags)
+    }
+
+    private func postCGKey(_ key: SafeHIDKey, keyDown: Bool, flags: CGEventFlags) {
         let source = CGEventSource(stateID: .hidSystemState)
         let virtualKey = cgKeyCode(for: key)
         guard let event = CGEvent(
@@ -277,8 +312,22 @@ final class VirtualHIDDevice {
         ) else {
             return
         }
-        event.flags = []
+        event.flags = flags
         event.post(tap: .cghidEventTap)
+    }
+
+    private func cgFlags(for modifiers: [SafeHIDKey]) -> CGEventFlags {
+        var flags: CGEventFlags = []
+        for modifier in modifiers {
+            switch modifier {
+            case .leftCommand, .rightCommand: flags.insert(.maskCommand)
+            case .leftControl, .rightControl: flags.insert(.maskControl)
+            case .leftShift, .rightShift: flags.insert(.maskShift)
+            case .leftOption, .rightOption: flags.insert(.maskAlternate)
+            default: break
+            }
+        }
+        return flags
     }
 
     private func cgKeyCode(for key: SafeHIDKey) -> CGKeyCode {
@@ -328,6 +377,8 @@ final class VirtualHIDDevice {
         case .leftArrow: return 123
         case .downArrow: return 125
         case .upArrow: return 126
+        case .tab: return 48
+        case .grave: return 50
         }
     }
 

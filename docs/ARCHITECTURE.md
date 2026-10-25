@@ -28,10 +28,10 @@ MenuBar / Window UI
 | Path | Role |
 | --- | --- |
 | `MoveIt/App` | `@main` app, menu bar extra, window scene, app delegate |
-| `MoveIt/UI` | Controls, welcome guide, permissions |
-| `MoveIt/Engine` | Scheduler, humanization, idle debounce |
+| `MoveIt/UI` | Controls (`NavigationSplitView`), activity stream, app-switch picker, welcome, permissions |
+| `MoveIt/Engine` | Scheduler, humanization, idle debounce, activity event stream, intensity periods |
 | `MoveIt/HID` | Virtual HID descriptors + CGEvent fallback |
-| `MoveIt/Support` | Permissions, launch-at-login, window helpers |
+| `MoveIt/Support` | Permissions, launch-at-login, app switching, focus safety, build identity, native glass helpers |
 | `MoveIt/Resources` | Info.plist, asset catalog (icons, welcome preview) |
 | `Design/` | Icon Composer source (`.icon`) — not duplicated elsewhere |
 | `Config/` | Shared `Version.xcconfig` |
@@ -42,11 +42,15 @@ MenuBar / Window UI
 
 1. **Welcome (first launch)** — menu-bar primer + Accessibility request; then accessory (menu-bar-only) mode.
 2. **Start** — arm engine; wait until real user idle ≥ debounce; simulate bursts; yield if user returns.
-3. **Dock Quit / ⌘Q** — dismiss to menu bar (does not quit). **Quit** in UI — full terminate.
-4. **Launch at login** — enabled by default on first run via `SMAppService`.
+3. **Bursts** — mouse / scroll / silent or character keys / optional restricted app or window switch from the allow list.
+4. **Intensity** — user sets a Quietest–Busiest range; engine picks an effective level every ~10 minutes.
+5. **Dock Quit / ⌘Q** — dismiss to menu bar (does not quit). **Quit** in UI — full terminate.
+6. **Launch at login** — enabled by default on first run via `SMAppService`.
+7. **Debug vs Release** — Debug ships as “MoveIt Dev” with a distinct bundle id so Accessibility grants don’t collide with Release.
 
-## Input safety (v1)
+## Input safety
 
 - Mouse moves + scroll; **no clicks**
-- Keys: letters, digits, arrows, bare modifiers (not chorded)
+- Silent modifiers by default; letters/digits/arrows only when opted in, and skipped while editing text / terminal focus
+- App switching only among user-selected apps/windows (never global ⌘Tab)
 - No F-keys / Escape / Page Up-Down / Home / End (avoid system shortcuts)

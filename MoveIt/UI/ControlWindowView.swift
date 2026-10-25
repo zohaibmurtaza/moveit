@@ -20,10 +20,16 @@ struct ControlWindowView: View {
                     .background(
                         WindowAccessor { window in
                             AppAppearance.tagControlsWindow(window)
-                            // Height follows content; keep a sensible minimum width.
                             window.styleMask.remove(.resizable)
                             window.styleMask.insert(.titled)
-                            window.minSize = NSSize(width: 680, height: 200)
+                            // Match ControlsView.windowWidth / windowHeight — stable across tabs.
+                            window.minSize = NSSize(width: 720, height: 580)
+                            let target = NSSize(width: 720, height: 580)
+                            if abs(window.frame.width - target.width) > 1
+                                || abs(window.frame.height - target.height) > 1
+                            {
+                                window.setContentSize(target)
+                            }
                         }
                     )
             }

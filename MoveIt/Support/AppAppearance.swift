@@ -39,14 +39,20 @@ enum AppAppearance {
 
     static func tagControlsWindow(_ window: NSWindow) {
         window.identifier = NSUserInterfaceItemIdentifier(controlsWindowID)
-        window.title = "MoveIt"
+        window.title = BuildIdentity.displayName
         window.representedURL = nil
         // Avoid restoring a previously stretched frame from an earlier layout.
         window.setFrameAutosaveName("")
+        // Do not clear/override the window background — on macOS 26+ the system
+        // supplies Liquid Glass. Custom clear/VFX layers kill that and look solid.
     }
 
     static func isControlsWindow(_ window: NSWindow) -> Bool {
-        window.identifier?.rawValue == controlsWindowID || window.title == "MoveIt"
+        window.identifier?.rawValue == controlsWindowID
+            || window.title == "MoveIt"
+            || window.title == "MoveIt Dev"
+            || window.title == "MoveIt (Dev)"
+            || window.title == BuildIdentity.displayName
     }
 
     static func closeControlsWindows() {

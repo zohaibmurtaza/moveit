@@ -6,21 +6,25 @@ Native **Apple Silicon** macOS menu-bar app that generates **human-like mouse an
 
 ![Platform](https://img.shields.io/badge/platform-macOS%2013%2B%20arm64-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Version](https://img.shields.io/badge/version-1.0.0-informational)
+![Version](https://img.shields.io/badge/version-1.1.0-informational)
 
 ## What it does
 
-MoveIt simulates idle-aware, human-like input (mouse paths, scrolls, and safe key taps) so you can study how systems behave when a Mac looks “active” without real work happening. It is more varied than fixed-interval mouse jigglers: idle debounce, Bezier motion, mixed mouse/keys, and an optional virtual HID path.
+MoveIt simulates idle-aware, human-like input (mouse paths, scrolls, and safe key taps) so you can study how systems behave when a Mac looks “active” without real work happening. It is more varied than fixed-interval mouse jigglers: idle debounce, Bezier motion, mixed mouse/keys, optional restricted app switching, and an optional virtual HID path.
 
 ## Features
 
 - Menu-bar app with first-run welcome + Accessibility request  
-- Idle debounce before activity (configurable; default 20s)  
-- Profiles: Subtle / Office / Intensive + intensity  
-- Humanized mouse paths, scroll, letters/digits/arrows/modifiers (no clicks, no F-keys)  
+- Idle debounce before activity (configurable)  
+- Profiles: Subtle / Office / Intensive + **intensity range** (resampled every 10 minutes)  
+- Humanized mouse paths (edge-aware), scroll, silent modifiers by default; characters opt-in with focus safety  
+- Restricted app/window switching among targets you select (no global ⌘Tab)  
+- Live activity stream (past → now → next) in the Status tab  
+- Settings-style window with native sidebar; Liquid Glass on macOS 26+  
 - Virtual HID when entitled; otherwise CGEvent fallback  
-- Launch at login (on by default)  
+- Launch at login (on by default); many menu-bar icon choices  
 - Dock Quit returns to menu bar; in-app **Quit** exits fully  
+- Debug builds as **MoveIt Dev** (separate bundle id from Release)  
 
 ## Quick start
 
