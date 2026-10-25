@@ -12,7 +12,7 @@ Marketing version and build number live in [`Config/Version.xcconfig`](Config/Ve
 ### Planned
 - Optional signed/notarized release workflow notes for maintainers
 
-## [1.1.2] - 2026-10-26
+## [1.1.1] - 2026-10-26
 
 ### Added
 - **Automatic updates via Sparkle** — checks the GitHub Releases appcast daily and installs updates in the background

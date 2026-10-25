@@ -6,7 +6,7 @@ Native **Apple Silicon** macOS menu-bar app that generates **human-like mouse an
 
 ![Platform](https://img.shields.io/badge/platform-macOS%2013%2B%20arm64-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Version](https://img.shields.io/badge/version-1.1.2-informational)
+![Version](https://img.shields.io/badge/version-1.1.1-informational)
 
 ## What it does
 
