@@ -8,10 +8,7 @@
 #   zip  = newest MoveIt-*-build*.zip under dist/
 #   tag  = v$MARKETING_VERSION from Config/Version.xcconfig
 #
-# Requires Sparkle CLI tools (generate_keys / sign_update) with Keychain account "moveit".
-# Download tools: https://github.com/sparkle-project/Sparkle/releases
-#
-# After running: commit appcast.xml, then ensure the GitHub Release asset name matches the zip.
+# Requires Sparkle CLI tools (sign_update) with Keychain account "moveit".
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -40,26 +37,20 @@ find_sign_update() {
     command -v sign_update
     return
   fi
-  for candidate in \
+  for path in \
     /tmp/sparkle-tools/bin/sign_update \
-    "$HOME/Downloads/Sparkle*/bin/sign_update" \
     "$ROOT/Tools/Sparkle/bin/sign_update"
   do
-    # shellcheck disable=SC2086
-    for path in $candidate; do
-      if [[ -x "$path" ]]; then
-        echo "$path"
-        return
-      fi
-    done
+    if [[ -x "$path" ]]; then
+      echo "$path"
+      return
+    fi
   done
   return 1
 }
 
 SIGN_UPDATE="$(find_sign_update)" || {
-  echo "sign_update not found. Install Sparkle tools and ensure Keychain account 'moveit' exists:" >&2
-  echo "  curl -L https://github.com/sparkle-project/Sparkle/releases/download/2.8.0/Sparkle-2.8.0.tar.xz | tar x -C /tmp/sparkle-tools" >&2
-  echo "  /tmp/sparkle-tools/bin/generate_keys --account moveit" >&2
+  echo "sign_update not found. Install Sparkle tools and ensure Keychain account 'moveit' exists." >&2
   exit 1
 }
 
@@ -72,9 +63,10 @@ SHORT_VERSION="$marketing"
 BUNDLE_VERSION="$build"
 
 APPCAST="$ROOT/appcast.xml"
-TMP="$(mktemp)"
+ITEM_FILE="$(mktemp)"
+trap 'rm -f "$ITEM_FILE"' EXIT
 
-ITEM=$(cat <<EOF
+cat >"$ITEM_FILE" <<EOF
     <item>
         <title>${TITLE}</title>
         <pubDate>${PUBDATE}</pubDate>
@@ -88,49 +80,48 @@ ITEM=$(cat <<EOF
             sparkle:edSignature="${SIGNATURE}" />
     </item>
 EOF
-)
 
-if [[ ! -f "$APPCAST" ]]; then
-  cat >"$APPCAST" <<EOF
-<?xml version="1.0" encoding="utf-8"?>
+python3 - "$APPCAST" "$BUNDLE_VERSION" "$ITEM_FILE" <<'PY'
+import re, sys
+from pathlib import Path
+
+appcast_path = Path(sys.argv[1])
+version = sys.argv[2]
+item = Path(sys.argv[3]).read_text(encoding="utf-8").rstrip() + "\n"
+
+if appcast_path.exists():
+    text = appcast_path.read_text(encoding="utf-8")
+else:
+    text = """<?xml version="1.0" encoding="utf-8"?>
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
     <title>MoveIt</title>
     <link>https://github.com/zohaibmurtaza/moveit/releases</link>
     <description>MoveIt updates</description>
     <language>en</language>
-${ITEM}
   </channel>
 </rss>
-EOF
-  echo "==> Created ${APPCAST}"
-else
-  # Drop any existing item with the same sparkle:version, then insert new item after <language>.
-  python3 - "$APPCAST" "$BUNDLE_VERSION" "$ITEM" <<'PY'
-import re, sys
-path, version, item = sys.argv[1], sys.argv[2], sys.argv[3]
-text = open(path, encoding="utf-8").read()
-# Remove item blocks that declare this bundle version.
-pattern = re.compile(
-    r"\s*<item>.*?sparkle:version>\s*" + re.escape(version) + r"\s*</sparkle:version>.*?</item>",
-    re.S,
+"""
+
+# Drop any existing item with this CFBundleVersion.
+text = re.sub(
+    r"\s*<item>\s*.*?<sparkle:version>\s*"
+    + re.escape(version)
+    + r"\s*</sparkle:version>.*?</item>",
+    "",
+    text,
+    flags=re.S,
 )
-text = pattern.sub("", text)
-# Insert after <language>...</language>
+
 m = re.search(r"(<language>.*?</language>)", text, re.S)
 if not m:
     raise SystemExit("appcast.xml missing <language> element")
-insert_at = m.end()
-text = text[:insert_at] + "\n" + item + text[insert_at:]
-open(path, "w", encoding="utf-8").write(text)
+text = text[: m.end()] + "\n" + item + text[m.end() :]
+appcast_path.write_text(text, encoding="utf-8")
+print(f"Wrote {appcast_path} (sparkle:version={version})")
 PY
-  echo "==> Updated ${APPCAST}"
-fi
 
 echo
 echo "Enclosure: ${DOWNLOAD_URL}"
 echo "sparkle:version (CFBundleVersion): ${BUNDLE_VERSION}"
-echo "Next:"
-echo "  1. Commit appcast.xml"
-echo "  2. Attach ${ZIP_BASENAME} to GitHub Release ${TAG}"
-echo "  3. Push main so SUFeedURL picks up the new appcast"
+echo "Next: commit appcast.xml, tag/push, attach ${ZIP_BASENAME} to Release ${TAG}"
