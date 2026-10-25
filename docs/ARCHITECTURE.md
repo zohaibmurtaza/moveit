@@ -31,7 +31,7 @@ MenuBar / Window UI
 | `MoveIt/UI` | Controls (`NavigationSplitView`), activity stream, app-switch picker, welcome, permissions |
 | `MoveIt/Engine` | Scheduler, humanization, idle debounce, activity event stream, intensity periods |
 | `MoveIt/HID` | Virtual HID descriptors + CGEvent fallback |
-| `MoveIt/Support` | Permissions, launch-at-login, app switching, focus safety, build identity, native glass helpers |
+| `MoveIt/Support` | Permissions, launch-at-login, app switching, focus safety, build identity, native glass helpers, Sparkle updater |
 | `MoveIt/Resources` | Info.plist, asset catalog (icons, welcome preview) |
 | `Design/` | Icon Composer source (`.icon`) — not duplicated elsewhere |
 | `Config/` | Shared `Version.xcconfig` |

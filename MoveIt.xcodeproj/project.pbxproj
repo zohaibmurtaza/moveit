@@ -35,6 +35,8 @@
 		A1000000000000000000001E /* ActivityEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001E /* ActivityEvent.swift */; };
 		A1000000000000000000001F /* ActivityStreamView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000000000000000000001F /* ActivityStreamView.swift */; };
 		A10000000000000000000020 /* NativeGlass.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000020 /* NativeGlass.swift */; };
+		A10000000000000000000021 /* AppUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000021 /* AppUpdater.swift */; };
+		A10000000000000000000022 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = P10000000000000000000002 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -71,6 +73,7 @@
 		B1000000000000000000001E /* ActivityEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityEvent.swift; sourceTree = "<group>"; };
 		B1000000000000000000001F /* ActivityStreamView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityStreamView.swift; sourceTree = "<group>"; };
 		B10000000000000000000020 /* NativeGlass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeGlass.swift; sourceTree = "<group>"; };
+		B10000000000000000000021 /* AppUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdater.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -78,6 +81,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000022 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -190,6 +194,7 @@
 				B1000000000000000000001B /* FocusSafety.swift */,
 				B1000000000000000000001C /* AppSwitching.swift */,
 				B10000000000000000000020 /* NativeGlass.swift */,
+				B10000000000000000000021 /* AppUpdater.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -219,6 +224,9 @@
 			dependencies = (
 			);
 			name = MoveIt;
+			packageProductDependencies = (
+				P10000000000000000000002 /* Sparkle */,
+			);
 			productName = MoveIt;
 			productReference = C10000000000000000000001 /* MoveIt.app */;
 			productType = "com.apple.product-type.application";
@@ -247,6 +255,9 @@
 				Base,
 			);
 			mainGroup = E10000000000000000000001;
+			packageReferences = (
+				P10000000000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			productRefGroup = E10000000000000000000003 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -299,6 +310,7 @@
 				A1000000000000000000001E /* ActivityEvent.swift in Sources */,
 				A1000000000000000000001F /* ActivityStreamView.swift in Sources */,
 				A10000000000000000000020 /* NativeGlass.swift in Sources */,
+				A10000000000000000000021 /* AppUpdater.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -420,6 +432,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		P10000000000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.8.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		P10000000000000000000002 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = P10000000000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = F10000000000000000000005 /* Project object */;
 }

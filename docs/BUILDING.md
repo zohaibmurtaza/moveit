@@ -25,7 +25,7 @@ Or open `MoveIt.xcodeproj` in Xcode → scheme **MoveIt** → Run.
 # → dist/MoveIt-<version>-build<n>.zip
 ```
 
-Recipients: unzip → **right-click → Open** the first time.
+Recipients: unzip, drag **MoveIt.app** into **Applications**, then open it from Applications.
 
 ## Accessibility
 

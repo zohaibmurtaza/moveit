@@ -14,6 +14,7 @@ DERIVED="${ROOT}/build"
 OUT_DIR="${ROOT}/dist"
 APP_NAME="MoveIt"
 ZIP_NAME="MoveIt-${marketing}-build${build}.zip"
+ENTITLEMENTS="${ROOT}/MoveIt/MoveIt.entitlements"
 
 mkdir -p "$OUT_DIR"
 
@@ -32,6 +33,40 @@ if [[ ! -d "$APP" ]]; then
   exit 1
 fi
 
+# Re-sign Sparkle (and helpers) + the app with the same ad-hoc identity so the
+# hardened runtime accepts the embedded framework.
+resign_sparkle_and_app() {
+  local app="$1"
+  local sparkle="$app/Contents/Frameworks/Sparkle.framework"
+  local ver="$sparkle/Versions/B"
+  if [[ ! -d "$sparkle" ]]; then
+    echo "Sparkle.framework missing from $app" >&2
+    exit 1
+  fi
+
+  echo "==> Re-signing Sparkle helpers (ad-hoc)"
+  local xpc
+  for xpc in "$ver/XPCServices"/*.xpc; do
+    [[ -e "$xpc" ]] || continue
+    codesign --force --sign - --options runtime --timestamp=none "$xpc"
+  done
+  if [[ -f "$ver/Autoupdate" ]]; then
+    codesign --force --sign - --options runtime --timestamp=none "$ver/Autoupdate"
+  fi
+  if [[ -d "$ver/Updater.app" ]]; then
+    codesign --force --deep --sign - --options runtime --timestamp=none "$ver/Updater.app"
+  fi
+  codesign --force --sign - --options runtime --timestamp=none "$ver/Sparkle"
+  codesign --force --sign - --options runtime --timestamp=none "$sparkle"
+  codesign --force --sign - --options runtime --timestamp=none \
+    --entitlements "$ENTITLEMENTS" "$app"
+}
+
+resign_sparkle_and_app "$APP"
+
+echo "==> Verifying signature"
+codesign --verify --deep --strict --verbose=2 "$APP"
+
 echo "==> Packaging ${ZIP_NAME}"
 rm -f "${OUT_DIR}/${ZIP_NAME}"
 ditto -c -k --sequesterRsrc --keepParent "$APP" "${OUT_DIR}/${ZIP_NAME}"
@@ -40,5 +75,9 @@ echo "==> Done"
 echo "App: ${APP}"
 echo "Zip: ${OUT_DIR}/${ZIP_NAME}"
 echo
-echo "On another Mac: unzip, then right-click → Open (Gatekeeper)."
+echo "Next for auto-updates:"
+echo "  ./Scripts/update-appcast.sh \"${OUT_DIR}/${ZIP_NAME}\" \"v${marketing}\""
+echo "  commit appcast.xml, tag, push, gh release upload the zip"
+echo
+echo "On another Mac: unzip, drag MoveIt.app to Applications, then open from there."
 echo "For notarized distribution see docs/RELEASING.md"

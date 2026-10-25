@@ -34,5 +34,16 @@
 	<string>Copyright © MoveIt.</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>MoveIt needs accessibility access to simulate mouse and keyboard input.</string>
+	<!-- Sparkle: appcast hosted on GitHub (main/appcast.xml); archives on Releases. -->
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/zohaibmurtaza/moveit/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>u8ah94cLtDPnSt/ezxicUqtY0JUcUgXzjBuv1QBbXrQ=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
+	<key>SUAutomaticallyUpdate</key>
+	<true/>
 </dict>
 </plist>

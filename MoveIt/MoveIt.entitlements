@@ -4,5 +4,14 @@
 <dict>
 	<key>com.apple.security.app-sandbox</key>
 	<false/>
+	<!--
+	  Required while shipping ad-hoc signed Release builds that embed Sparkle’s
+	  prebuilt framework. Without this, dyld rejects Sparkle with
+	  “different Team IDs” under the hardened runtime.
+	  When signing with a real Developer ID team, re-sign Sparkle with the same
+	  identity; this entitlement can then be removed if desired.
+	-->
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
 </dict>
 </plist>

@@ -11,6 +11,17 @@ struct MenuBarView: View {
 
             Divider()
 
+            if AppUpdater.shared.canCheckForUpdates {
+                Button("Check for Updates…") {
+                    AppUpdater.shared.checkForUpdates()
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+
+                Divider()
+            }
+
             Button("Open \(BuildIdentity.displayName) Window…") {
                 AppAppearance.showInDock()
                 openWindow(id: "controls")

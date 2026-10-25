@@ -12,6 +12,20 @@ Marketing version and build number live in [`Config/Version.xcconfig`](Config/Ve
 ### Planned
 - Optional signed/notarized release workflow notes for maintainers
 
+## [1.1.2] - 2026-10-26
+
+### Added
+- **Automatic updates via Sparkle** — checks the GitHub Releases appcast daily and installs updates in the background
+- **Check for Updates…** in the menu bar panel and Appearance → Updates (Release builds only)
+- `Scripts/update-appcast.sh` to sign zips and refresh `appcast.xml`
+
+### Changed
+- Release docs describe the Sparkle + GitHub Releases publish flow
+- Install guidance: unzip, drag **MoveIt.app** to **Applications**, then open from there
+
+### Fixed
+- Ad-hoc Release builds with Sparkle open correctly under the hardened runtime (library-validation entitlement + re-sign Sparkle in `build-release.sh`)
+
 ## [1.1.0] - 2026-10-26
 
 ### Added

@@ -208,13 +208,31 @@ struct ControlsView: View {
                     .opacity(engine.allowAppNavigation ? 1 : 0.45)
             }
         case .appearance:
-            VStack(alignment: .leading, spacing: 16) {
-                sectionTitle("Menu bar")
-                Text("Choose the icon shown in the menu bar. Your choice is saved on this Mac.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                menuBarIconPicker
+            VStack(alignment: .leading, spacing: 18) {
+                settingsCard(
+                    title: "Updates",
+                    footer: AppUpdater.shared.canCheckForUpdates
+                        ? "Checks GitHub Releases daily and installs updates automatically when available."
+                        : "Automatic updates apply to Release builds of MoveIt (not MoveIt Dev)."
+                ) {
+                    if AppUpdater.shared.canCheckForUpdates {
+                        Button("Check for Updates…") {
+                            AppUpdater.shared.checkForUpdates()
+                        }
+                    } else {
+                        Text("You’re running \(BuildIdentity.displayName). Install the Release build from GitHub to receive updates.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                settingsCard(
+                    title: "Menu bar icon",
+                    footer: "Your choice is saved on this Mac."
+                ) {
+                    menuBarIconPicker
+                }
             }
         case .status:
             VStack(alignment: .leading, spacing: 16) {

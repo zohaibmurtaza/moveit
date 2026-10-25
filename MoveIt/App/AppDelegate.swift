@@ -24,6 +24,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         _ = Permissions.ensureAccessibility(prompt: false)
         LaunchAtLogin.enableByDefaultIfNeeded()
+        Task { @MainActor in
+            AppUpdater.shared.start()
+        }
 
         if AppAppearance.didCompleteWelcome {
             // Returning users: menu bar only, no Dock / no floating window.
