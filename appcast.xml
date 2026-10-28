@@ -6,6 +6,19 @@
     <description>MoveIt updates</description>
     <language>en</language>
     <item>
+        <title>MoveIt 1.2.0</title>
+        <pubDate>Wed, 28 Oct 2026 08:54:48 +0000</pubDate>
+        <sparkle:version>5</sparkle:version>
+        <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
+        <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+        <enclosure
+            url="https://github.com/zohaibmurtaza/moveit/releases/download/v1.2.0/MoveIt-1.2.0-build5.zip"
+            length="4839563"
+            type="application/octet-stream"
+            sparkle:edSignature="pm8edpj8dZwzQCrbOZBscjo1uduJhX0zYvV4CWTrVVmucwhBw7vLkaRu8HnDYGolLnCXHW92fUv11+2JvljCBQ==" />
+    </item>
+
+    <item>
         <title>MoveIt 1.1.1</title>
         <pubDate>Sun, 25 Oct 2026 19:31:07 +0000</pubDate>
         <sparkle:version>4</sparkle:version>
