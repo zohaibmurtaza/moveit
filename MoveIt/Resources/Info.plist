@@ -33,7 +33,9 @@
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © MoveIt.</string>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>MoveIt needs accessibility access to simulate mouse and keyboard input.</string>
+	<string>MoveIt needs Automation access to focus specific app windows across Spaces.</string>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>MoveIt uses Screen Recording only to read window titles (including fullscreen windows on other Spaces). It does not capture, record, or save your screen.</string>
 	<!-- Sparkle: appcast hosted on GitHub (main/appcast.xml); archives on Releases. -->
 	<key>SUFeedURL</key>
 	<string>https://raw.githubusercontent.com/zohaibmurtaza/moveit/main/appcast.xml</string>

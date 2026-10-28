@@ -95,6 +95,16 @@ enum SafeHIDKey: UInt8 {
     case downArrow = 0x51
     case upArrow = 0x52
 
+    // Editing
+    case backspace = 0x2A
+    case space = 0x2C
+    case escape = 0x29
+    case period = 0x37
+
+    // Bracket keys — only used for Cursor terminal chords (⌘⇧[ / ⌘⇧]).
+    case leftBracket = 0x2F
+    case rightBracket = 0x30
+
     // Used only inside navigation chords (⌘Tab, ⌃Tab, ⌘`)
     case tab = 0x2B
     case grave = 0x35

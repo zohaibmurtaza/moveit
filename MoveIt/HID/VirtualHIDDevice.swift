@@ -65,6 +65,7 @@ final class VirtualHIDDevice {
 
     private func stopLocked() {
         releaseAllKeysLocked()
+        setButtonLocked(0)
         tearDownDevice(mouseDevice)
         tearDownDevice(keyboardDevice)
         mouseDevice = nil
@@ -104,30 +105,43 @@ final class VirtualHIDDevice {
         }
     }
 
-    func scroll(dy: Int) {
+    /// Left click at the current cursor. Button is released before returning.
+    func click() {
+        setButton(0x01)
+        Thread.sleep(forTimeInterval: 0.045)
+        setButton(0x00)
+    }
+
+    /// Relative scroll. `dy` is vertical; `dx` is horizontal.
+    /// Vertical can use the virtual HID wheel; horizontal always uses CGEvent
+    /// (HID mouse descriptor has no horizontal pan axis).
+    func scroll(dx: Int = 0, dy: Int = 0) {
         lock.lock()
         defer { lock.unlock() }
+        guard dx != 0 || dy != 0 else { return }
 
-        let wheel = clamp8(dy)
+        let wheelY = clamp8(dy)
+        let wheelX = clamp8(dx)
 
-        switch backend {
-        case .virtualHID:
-            let report: [UInt8] = [0, 0, 0, UInt8(bitPattern: wheel)]
+        if backend == .virtualHID, dy != 0 {
+            let report: [UInt8] = [0, 0, 0, UInt8(bitPattern: wheelY)]
             handleMouseReport(report)
-        case .cgEvent:
-            let source = CGEventSource(stateID: .hidSystemState)
-            if let event = CGEvent(
-                scrollWheelEvent2Source: source,
-                units: .line,
-                wheelCount: 1,
-                wheel1: Int32(wheel),
-                wheel2: 0,
-                wheel3: 0
-            ) {
-                event.post(tap: .cghidEventTap)
-            }
-        case .unavailable:
-            break
+        }
+
+        let needsCG = dx != 0 || backend != .virtualHID
+        guard needsCG else { return }
+
+        let source = CGEventSource(stateID: .hidSystemState)
+        let cgY: Int32 = (backend == .virtualHID && dy != 0) ? 0 : Int32(wheelY)
+        if let event = CGEvent(
+            scrollWheelEvent2Source: source,
+            units: .line,
+            wheelCount: 2,
+            wheel1: cgY,
+            wheel2: Int32(wheelX),
+            wheel3: 0
+        ) {
+            event.post(tap: .cghidEventTap)
         }
     }
 
@@ -243,6 +257,43 @@ final class VirtualHIDDevice {
         return device
     }
 
+    private func setButton(_ buttons: UInt8) {
+        lock.lock()
+        defer { lock.unlock() }
+        setButtonLocked(buttons)
+    }
+
+    private func setButtonLocked(_ buttons: UInt8) {
+        switch backend {
+        case .virtualHID:
+            let report: [UInt8] = [buttons, 0, 0, 0]
+            handleMouseReport(report)
+        case .cgEvent:
+            postCGClick(down: buttons != 0)
+        case .unavailable:
+            break
+        }
+    }
+
+    private func postCGClick(down: Bool) {
+        let source = CGEventSource(stateID: .hidSystemState)
+        let point = currentCGMouse()
+        let type: CGEventType = down ? .leftMouseDown : .leftMouseUp
+        guard let event = CGEvent(
+            mouseEventSource: source,
+            mouseType: type,
+            mouseCursorPosition: point,
+            mouseButton: .left
+        ) else { return }
+        event.post(tap: .cghidEventTap)
+    }
+
+    private func currentCGMouse() -> CGPoint {
+        let location = NSEvent.mouseLocation
+        let screenHeight = NSScreen.screens.map(\.frame.maxY).max() ?? 0
+        return CGPoint(x: location.x, y: screenHeight - location.y)
+    }
+
     private func handleMouseReport(_ report: [UInt8]) {
         guard let device = mouseDevice else { return }
         report.withUnsafeBytes { raw in
@@ -297,9 +348,16 @@ final class VirtualHIDDevice {
         holdMilliseconds: UInt64
     ) {
         let flags = cgFlags(for: modifiers)
+        // Press modifiers first so the key-down sees the full chord.
+        for modifier in modifiers where modifier.isModifier {
+            postCGKey(modifier, keyDown: true, flags: flags)
+        }
         postCGKey(key, keyDown: true, flags: flags)
         Thread.sleep(forTimeInterval: TimeInterval(holdMilliseconds) / 1000.0)
         postCGKey(key, keyDown: false, flags: flags)
+        for modifier in modifiers.reversed() where modifier.isModifier {
+            postCGKey(modifier, keyDown: false, flags: [])
+        }
     }
 
     private func postCGKey(_ key: SafeHIDKey, keyDown: Bool, flags: CGEventFlags) {
@@ -377,6 +435,12 @@ final class VirtualHIDDevice {
         case .leftArrow: return 123
         case .downArrow: return 125
         case .upArrow: return 126
+        case .backspace: return 51
+        case .space: return 49
+        case .escape: return 53
+        case .period: return 47
+        case .leftBracket: return 33
+        case .rightBracket: return 30
         case .tab: return 48
         case .grave: return 50
         }

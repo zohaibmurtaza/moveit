@@ -13,10 +13,10 @@ xcodebuild -scheme MoveIt -configuration Debug -arch arm64 \
   -derivedDataPath build \
   CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=YES
 
-open "build/Build/Products/Debug/MoveIt.app"
+open "build/Build/Products/Debug/MoveIt Dev.app"
 ```
 
-Or open `MoveIt.xcodeproj` in Xcode → scheme **MoveIt** → Run.
+Debug builds as **MoveIt Dev** (`com.moveit.MoveIt.dev`). Or open `MoveIt.xcodeproj` in Xcode → scheme **MoveIt** → Run.
 
 ## Release zip (shareable, ad-hoc)
 

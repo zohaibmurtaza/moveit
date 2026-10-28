@@ -201,6 +201,21 @@ struct ActivityStreamView: View {
         case .keyboard: return "Keys"
         case .silentKeys: return "Silent"
         case .appSwitch: return "Switch"
+        case .tabSwitch: return "Tab"
+        case .cursor:
+            if event.title.localizedCaseInsensitiveContains("terminal") { return "Term" }
+            if event.title.localizedCaseInsensitiveContains("chat") { return "Chat" }
+            if event.title.localizedCaseInsensitiveContains("open") { return "Open" }
+            if event.title.localizedCaseInsensitiveContains("line") { return "Line" }
+            return "Files"
+        case .slack:
+            if event.title.localizedCaseInsensitiveContains("search") { return "Search" }
+            if event.title.localizedCaseInsensitiveContains("close") { return "Close" }
+            if event.title.localizedCaseInsensitiveContains("thread") { return "Thread" }
+            if event.title.localizedCaseInsensitiveContains("organization") { return "Org" }
+            if event.title.localizedCaseInsensitiveContains("channel") { return "Chat" }
+            return "Scroll"
+        case .microBreak: return "Break"
         case .waiting: return "Wait"
         case .skipped: return "Skip"
         }
@@ -213,6 +228,10 @@ struct ActivityStreamView: View {
         case .keyboard: return .purple
         case .silentKeys: return .indigo
         case .appSwitch: return .orange
+        case .tabSwitch: return .teal
+        case .cursor: return .green
+        case .slack: return .purple
+        case .microBreak: return .mint
         case .waiting: return .secondary
         case .skipped: return .secondary
         }

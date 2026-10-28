@@ -72,6 +72,7 @@ struct AppSwitchPickerView: View {
                     if expandedBundleID == app.bundleIdentifier {
                         expandedBundleID = nil
                     } else {
+                        ensureScreenRecordingForWindows()
                         expandedBundleID = app.bundleIdentifier
                         loadWindows(for: app.bundleIdentifier)
                     }
@@ -86,14 +87,35 @@ struct AppSwitchPickerView: View {
     private func windowPicker(for bundleID: String) -> some View {
         let windows = windowsByBundle[bundleID] ?? []
         let targetIndex = targets.firstIndex { $0.bundleIdentifier == bundleID }
+        let needsRelaunch = Permissions.screenRecordingNeedsRelaunch
         return VStack(alignment: .leading, spacing: 4) {
-            Text(windows.isEmpty
-                 ? "No titled windows (grant Accessibility if missing)."
-                 : "Limit to these windows (none checked = any window):")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 28)
+            if needsRelaunch {
+                screenRecordingBanner(
+                    text: "Screen Recording is on — relaunch \(BuildIdentity.displayName) to list fullscreen windows.",
+                    primary: "Relaunch Now",
+                    action: Permissions.relaunchApp
+                )
+            } else if !Permissions.hasScreenRecording {
+                screenRecordingBanner(
+                    text: "Screen Recording is required to list fullscreen windows on other Spaces.",
+                    primary: "Request Permission",
+                    action: {
+                        ensureScreenRecordingForWindows()
+                        loadWindows(for: bundleID)
+                    }
+                )
+            } else {
+                Text(windows.isEmpty
+                     ? "No titled windows found for this app."
+                     : "Limit to these windows (none checked = any window):")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 28)
+            }
 
+            // Always list what we have (AX and/or CG). Banner above explains
+            // missing fullscreen titles when Screen Recording is off.
             ForEach(windows) { window in
                 let checked = targetIndex.flatMap { idx in
                     targets[idx].selectedWindowTitles.contains(window.title)
@@ -112,6 +134,30 @@ struct AppSwitchPickerView: View {
             }
         }
         .padding(.bottom, 8)
+    }
+
+    private func screenRecordingBanner(text: String, primary: String, action: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(text)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Button(primary, action: action)
+                    .controlSize(.mini)
+                Button("Open Settings") {
+                    Permissions.openScreenRecordingSettings()
+                }
+                .controlSize(.mini)
+            }
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 4)
+    }
+
+    private func ensureScreenRecordingForWindows() {
+        guard !Permissions.hasScreenRecording else { return }
+        _ = Permissions.ensureScreenRecording(prompt: true)
     }
 
     private func reload() {

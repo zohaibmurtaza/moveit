@@ -15,8 +15,11 @@ final class KeyboardSimulator {
         self.device = device
     }
 
+    /// Plays key taps. Wrap only the HID/CG injection with `inject` so idle
+    /// monitoring still sees real user input between keys.
     func play(
         sequence: [(key: SafeHIDKey, holdMs: UInt64, gap: TimeInterval)],
+        inject: ( () -> Void ) -> Void = { $0() },
         abortCharactersIfEditing: Bool = false,
         isCancelled: () -> Bool
     ) {
@@ -32,27 +35,51 @@ final class KeyboardSimulator {
                 device.releaseAllKeys()
                 return
             }
-            device.tap(event.key, holdMilliseconds: event.holdMs)
-            if event.gap > 0 {
-                Thread.sleep(forTimeInterval: event.gap)
+            inject {
+                self.device.tap(event.key, holdMilliseconds: event.holdMs)
+            }
+            if sleepInterruptible(event.gap, isCancelled: isCancelled) {
+                device.releaseAllKeys()
+                return
             }
         }
         device.releaseAllKeys()
     }
 
-    func playChord(_ chord: KeyChord, isCancelled: () -> Bool) {
+    func playChord(
+        _ chord: KeyChord,
+        inject: ( () -> Void ) -> Void = { $0() },
+        isCancelled: () -> Bool
+    ) {
         if isCancelled() {
             device.releaseAllKeys()
             return
         }
-        device.tapChord(
-            modifiers: chord.modifiers,
-            key: chord.key,
-            holdMilliseconds: chord.holdMs
-        )
-        if chord.gap > 0 {
-            Thread.sleep(forTimeInterval: chord.gap)
+        inject {
+            self.device.tapChord(
+                modifiers: chord.modifiers,
+                key: chord.key,
+                holdMilliseconds: chord.holdMs
+            )
+        }
+        if sleepInterruptible(chord.gap, isCancelled: isCancelled) {
+            device.releaseAllKeys()
+            return
         }
         device.releaseAllKeys()
+    }
+
+    @discardableResult
+    private func sleepInterruptible(_ interval: TimeInterval, isCancelled: () -> Bool) -> Bool {
+        guard interval > 0 else { return isCancelled() }
+        let slice: TimeInterval = 0.015
+        var remaining = interval
+        while remaining > 0 {
+            if isCancelled() { return true }
+            let step = min(slice, remaining)
+            Thread.sleep(forTimeInterval: step)
+            remaining -= step
+        }
+        return isCancelled()
     }
 }

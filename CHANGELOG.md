@@ -12,6 +12,33 @@ Marketing version and build number live in [`Config/Version.xcconfig`](Config/Ve
 ### Planned
 - Optional signed/notarized release workflow notes for maintainers
 
+## [1.2.0] - 2026-10-28
+
+### Added
+- **Apps sidebar** — expandable Apps list with nested Cursor and Slack; each app has its own detail pane
+- **Cursor behavior** — linger in Cursor; open files from Explorer, click editor lines, cycle terminals and chat tabs; layout-aware targeting when panes are resized
+- **Slack behavior** — switch chats, open/close search, scroll channels and messages, open/close threads, optional workspace (organization) switching
+- **Micro-breaks** — random 30–120s pauses with Fewer / Standard / More frequency
+- **Adaptive work rhythms** — typing / reading / navigation / mixed / quiet phases that shift over time
+- **Global hotkeys** — Control-Shift-U Start, Control-Shift-K Stop, Control-Shift-0 Emergency Stop (quit)
+- **Keyboard WPM** slider and **natural typing** with occasional typo + backspace corrections
+- **Primary display only** mouse targeting
+- **Disguise** — optional custom process name
+- **Tab switch scope** — Browsers only vs All apps
+- Reading-style scroll with intensity and axis controls; interruptible mouse/scroll/keyboard playback
+- Fullscreen / other-Space window switching with Screen Recording permission for titles
+- Browser tab chords (⌘1–9, ⌃Tab, ⌘⌥←/→) when a browser is frontmost
+
+### Changed
+- Controls window enlarged (840×700); Apps nested under Simulation in the sidebar
+- Menu bar panel no longer shows Cursor/Slack behavior toggles (set them under Apps)
+- App switching claims a single scheduled slot so switches do not stack in one burst
+
+### Fixed
+- Mouse/scroll/keyboard stop promptly when cancelled or when the user returns
+- CGEvent chord path presses modifiers before the key
+- Screen Recording and Accessibility prompts and relaunch guidance for window titles / fullscreen targets
+
 ## [1.1.1] - 2026-10-26
 
 ### Added

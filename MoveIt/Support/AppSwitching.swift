@@ -1,5 +1,6 @@
 import AppKit
 import ApplicationServices
+import CoreGraphics
 
 /// A user-chosen app (and optional window titles) that MoveIt may switch to.
 struct SwitchAppTarget: Codable, Identifiable, Hashable {
@@ -36,6 +37,17 @@ enum AppSwitching {
         return ids
     }
 
+    static let browserBundleIDs: Set<String> = [
+        "com.google.Chrome",
+        "com.google.Chrome.beta",
+        "com.google.Chrome.canary",
+        "company.thebrowser.Browser",
+        "com.brave.Browser",
+        "com.microsoft.edgemac",
+        "org.mozilla.firefox",
+        "com.apple.Safari"
+    ]
+
     static func runningApps() -> [RunningAppInfo] {
         NSWorkspace.shared.runningApplications
             .filter { app in
@@ -58,48 +70,44 @@ enum AppSwitching {
 
     static func openWindows(forBundleID bundleID: String) -> [AppWindowInfo] {
         onMain {
-            guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first
-            else { return [] }
-
-            let appElement = AXUIElementCreateApplication(app.processIdentifier)
-            var windowsRef: CFTypeRef?
-            guard AXUIElementCopyAttributeValue(
-                appElement,
-                kAXWindowsAttribute as CFString,
-                &windowsRef
-            ) == .success,
-            let windows = windowsRef as? [AXUIElement]
-            else { return [] }
-
-            var titles: [String] = []
-            for window in windows {
-                var titleRef: CFTypeRef?
-                guard AXUIElementCopyAttributeValue(
-                    window,
-                    kAXTitleAttribute as CFString,
-                    &titleRef
-                ) == .success,
-                let title = titleRef as? String,
-                !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                else { continue }
-                if !titles.contains(title) {
-                    titles.append(title)
-                }
-            }
-            return titles.map { AppWindowInfo(title: $0) }
+            // AX often omits fullscreen windows on other Spaces. Always merge with
+            // CGWindowList (optionAll) so those titles show up in the picker.
+            let merged = mergeTitles(
+                axWindowTitles(bundleID: bundleID),
+                cgWindowTitles(bundleID: bundleID)
+            )
+            return merged.map { AppWindowInfo(title: $0) }
         }
+    }
+
+    private static func mergeTitles(_ lists: [String]...) -> [String] {
+        var seen = Set<String>()
+        var out: [String] = []
+        for list in lists {
+            for raw in list {
+                let title = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !title.isEmpty, !seen.contains(title) else { continue }
+                seen.insert(title)
+                out.append(title)
+            }
+        }
+        return out
     }
 
     /// Activate a selected target on the main thread (required for AX / activation).
     @discardableResult
     static func activate(_ target: SwitchAppTarget) -> String? {
-        onMain {
+        let label = onMain {
             activateOnMain(target)
         }
+        // Yield on the caller (worker) thread — never sleep on main, or Stop deadlocks
+        // against activity-stream main.sync calls.
+        Thread.sleep(forTimeInterval: 0.12)
+        return label
     }
 
     private static func activateOnMain(_ target: SwitchAppTarget) -> String? {
-        let apps = NSRunningApplication.runningApplications(withBundleIdentifier: target.bundleIdentifier)
+        let apps = preferredApps(forBundleID: target.bundleIdentifier)
         guard let app = apps.first else {
             guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: target.bundleIdentifier)
             else { return nil }
@@ -109,60 +117,87 @@ enum AppSwitching {
             return "Open \(target.displayName)"
         }
 
-        // Activate the app first — window raise alone often does nothing if app isn't frontmost.
+        // Unhide + activate first — this is what brings a fullscreen Space forward.
+        if app.isHidden {
+            app.unhide()
+        }
         activateApp(app)
 
         if target.restrictsWindows {
             let wanted = Set(target.selectedWindowTitles)
-            if let title = focusWindow(pid: app.processIdentifier, matching: wanted) {
+            // Try every PID for this bundle (Chrome can have multiple processes).
+            for candidate in apps {
+                if let title = focusWindow(pid: candidate.processIdentifier, matching: wanted) {
+                    activateApp(candidate)
+                    return "Focus \(target.displayName) — \(title)"
+                }
+            }
+            if let title = focusWindowViaAppleScript(bundleID: target.bundleIdentifier, matching: wanted) {
                 activateApp(app)
                 return "Focus \(target.displayName) — \(title)"
             }
-            // Fall through to any-window / activate if titled window wasn't found.
+            // Restricted title not found via AX/script — still activate the app
+            // (fullscreen window may only appear after Space switch).
+            return "Switch to \(target.displayName)"
         }
 
-        if let title = focusRandomWindow(pid: app.processIdentifier, excludingFront: true) {
-            activateApp(app)
-            return "Window in \(target.displayName) — \(title)"
+        // Raise a non-front window when possible; fullscreen apps often have no
+        // raisable AX window — activation alone is enough to switch Spaces.
+        for candidate in apps {
+            if let title = focusRandomWindow(pid: candidate.processIdentifier, excludingFront: true) {
+                activateApp(candidate)
+                return "Window in \(target.displayName) — \(title)"
+            }
         }
 
+        // Last resort: reopen via Workspace (more reliable across Spaces / fullscreen).
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: target.bundleIdentifier) {
+            let config = NSWorkspace.OpenConfiguration()
+            config.activates = true
+            NSWorkspace.shared.openApplication(at: url, configuration: config) { _, _ in }
+        }
         activateApp(app)
         return "Switch to \(target.displayName)"
     }
 
+    /// Prefer regular (Dock) processes over helpers sharing a bundle id.
+    private static func preferredApps(forBundleID bundleID: String) -> [NSRunningApplication] {
+        NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+            .sorted { a, b in
+                let aScore = a.activationPolicy == .regular ? 0 : 1
+                let bScore = b.activationPolicy == .regular ? 0 : 1
+                if aScore != bScore { return aScore < bScore }
+                return a.processIdentifier < b.processIdentifier
+            }
+    }
+
     private static func activateApp(_ app: NSRunningApplication) {
-        // Menu-bar / accessory apps often get a no-op from bare activate().
-        // AX frontmost + ignoringOtherApps is what actually steals focus.
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
         AXUIElementSetAttributeValue(appElement, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
 
-        // Prefer the classic option — still available and more reliable for
-        // background agents than the macOS 14 parameterless activate().
-        _ = app.activate(options: [.activateIgnoringOtherApps])
+        _ = app.activate(options: [.activateIgnoringOtherApps, .activateAllWindows])
         if #available(macOS 14.0, *) {
-            // Second pass for newer WindowServer paths.
             app.activate()
         }
-
-        // Yield so WindowServer applies activation before AX window raise.
-        Thread.sleep(forTimeInterval: 0.08)
     }
 
-    /// If frontmost app is an allow-listed browser, return true so caller can ⌃Tab.
-    static func frontmostIsBrowser(in targets: [SwitchAppTarget]) -> Bool {
+    /// True when a known browser is frontmost. `targets` is unused for the check —
+    /// tab chords stay inside the current browser and don’t require it to be in the switch list.
+    static func frontmostIsBrowser(in targets: [SwitchAppTarget] = []) -> Bool {
         onMain {
+            _ = targets
             guard let front = NSWorkspace.shared.frontmostApplication?.bundleIdentifier else { return false }
-            let browserIDs: Set<String> = [
-                "com.google.Chrome",
-                "com.google.Chrome.beta",
-                "com.google.Chrome.canary",
-                "company.thebrowser.Browser",
-                "com.brave.Browser",
-                "com.microsoft.edgemac",
-                "org.mozilla.firefox",
-                "com.apple.Safari"
-            ]
-            return targets.contains { $0.bundleIdentifier == front } && browserIDs.contains(front)
+            return browserBundleIDs.contains(front)
+        }
+    }
+
+    static func frontmostBrowserName() -> String? {
+        onMain {
+            guard let app = NSWorkspace.shared.frontmostApplication,
+                  let bid = app.bundleIdentifier,
+                  browserBundleIDs.contains(bid)
+            else { return nil }
+            return app.localizedName ?? "Browser"
         }
     }
 
@@ -181,6 +216,92 @@ enum AppSwitching {
 
     private enum Keys {
         static let targets = "moveit.switchTargets"
+    }
+
+    private static func axWindowTitles(bundleID: String) -> [String] {
+        let apps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+        guard !apps.isEmpty else { return [] }
+
+        var titles: [String] = []
+        for app in apps {
+            let appElement = AXUIElementCreateApplication(app.processIdentifier)
+            var windowsRef: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(
+                appElement,
+                kAXWindowsAttribute as CFString,
+                &windowsRef
+            ) == .success,
+            let windows = windowsRef as? [AXUIElement]
+            else { continue }
+
+            for window in windows {
+                guard let title = windowTitle(window),
+                      !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                else { continue }
+                if !titles.contains(title) {
+                    titles.append(title)
+                }
+            }
+        }
+        return titles
+    }
+
+    private static func cgWindowTitles(bundleID: String) -> [String] {
+        let apps = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+        let pids = Set(apps.map(\.processIdentifier))
+        guard !pids.isEmpty else { return [] }
+
+        // optionAll includes windows on other Spaces / fullscreen desktops.
+        guard let info = CGWindowListCopyWindowInfo(
+            [.optionAll, .excludeDesktopElements],
+            kCGNullWindowID
+        ) as? [[String: Any]]
+        else { return [] }
+
+        var titles: [String] = []
+        for entry in info {
+            let pidValue = entry[kCGWindowOwnerPID as String]
+            let pid: pid_t?
+            if let v = pidValue as? pid_t {
+                pid = v
+            } else if let v = pidValue as? Int {
+                pid = pid_t(v)
+            } else if let v = pidValue as? Int32 {
+                pid = pid_t(v)
+            } else {
+                pid = nil
+            }
+            guard let pid, pids.contains(pid) else { continue }
+
+            // Skip menus, overlays, tooltips (non-zero layer).
+            let layer = (entry[kCGWindowLayer as String] as? Int)
+                ?? (entry[kCGWindowLayer as String] as? Int32).map(Int.init)
+                ?? 0
+            guard layer == 0 else { continue }
+
+            if let bounds = entry[kCGWindowBounds as String] as? [String: Any] {
+                let width = cgNumber(bounds["Width"]) ?? 0
+                let height = cgNumber(bounds["Height"]) ?? 0
+                // Drop tiny helper surfaces; keep real windows (incl. fullscreen).
+                if width < 120 || height < 120 { continue }
+            }
+
+            guard let title = entry[kCGWindowName as String] as? String,
+                  !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            else { continue }
+            if !titles.contains(title) {
+                titles.append(title)
+            }
+        }
+        return titles
+    }
+
+    private static func cgNumber(_ value: Any?) -> CGFloat? {
+        if let n = value as? CGFloat { return n }
+        if let n = value as? Double { return CGFloat(n) }
+        if let n = value as? Int { return CGFloat(n) }
+        if let n = value as? NSNumber { return CGFloat(truncating: n) }
+        return nil
     }
 
     private static func focusRandomWindow(pid: pid_t, excludingFront: Bool) -> String? {
@@ -211,7 +332,8 @@ enum AppSwitching {
 
         guard let window = candidates.randomElement() else { return nil }
         let title = windowTitle(window) ?? "Window"
-        guard raise(window) else { return nil }
+        // AXRaise often fails for fullscreen windows; activation still helps.
+        _ = raise(window)
         return title
     }
 
@@ -228,12 +350,77 @@ enum AppSwitching {
 
         var matches: [(AXUIElement, String)] = []
         for window in windows {
-            guard let title = windowTitle(window), titles.contains(title) else { continue }
+            guard let title = windowTitle(window), titleMatches(title, in: titles) else { continue }
             matches.append((window, title))
         }
         guard let pick = matches.randomElement() else { return nil }
-        guard raise(pick.0) else { return nil }
+        _ = raise(pick.0)
         return pick.1
+    }
+
+    /// Exact match, or safe prefix when both sides are long enough (avoids "G" matching everything).
+    private static func titleMatches(_ title: String, in wanted: Set<String>) -> Bool {
+        if wanted.contains(title) { return true }
+        for w in wanted where w.count >= 8 && title.count >= 8 {
+            if title.hasPrefix(w) || w.hasPrefix(title) { return true }
+        }
+        return false
+    }
+
+    /// Scriptable apps (Chrome, Safari, etc.) can raise windows AX can't see across Spaces.
+    private static func focusWindowViaAppleScript(bundleID: String, matching titles: Set<String>) -> String? {
+        guard let title = titles.randomElement() else { return nil }
+        let escaped = appleScriptEscape(title)
+
+        let source: String
+        if browserBundleIDs.contains(bundleID) {
+            // Chrome / Safari expose windows by name across Spaces.
+            source = """
+            tell application id "\(bundleID)"
+              activate
+              try
+                set index of window "\(escaped)" to 1
+                return "\(escaped)"
+              on error
+                repeat with w in windows
+                  set t to name of w as text
+                  if t is "\(escaped)" or t starts with "\(escaped)" then
+                    set index of w to 1
+                    return t
+                  end if
+                end repeat
+              end try
+            end tell
+            """
+        } else {
+            source = """
+            tell application id "\(bundleID)" to activate
+            tell application "System Events"
+              tell (first process whose bundle identifier is "\(bundleID)")
+                set frontmost to true
+                try
+                  perform action "AXRaise" of (first window whose title is "\(escaped)")
+                  return "\(escaped)"
+                end try
+              end tell
+            end tell
+            """
+        }
+
+        var error: NSDictionary?
+        guard let script = NSAppleScript(source: source) else { return nil }
+        let result = script.executeAndReturnError(&error)
+        if error != nil { return nil }
+        let returned = result.stringValue?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (returned?.isEmpty == false) ? returned : title
+    }
+
+    private static func appleScriptEscape(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
     }
 
     private static func windowTitle(_ window: AXUIElement) -> String? {
@@ -248,17 +435,15 @@ enum AppSwitching {
 
     @discardableResult
     private static func raise(_ window: AXUIElement) -> Bool {
-        // Prefer standard raise action; then force main/focused.
         let raised = AXUIElementPerformAction(window, kAXRaiseAction as CFString) == .success
         AXUIElementSetAttributeValue(window, kAXMainAttribute as CFString, kCFBooleanTrue)
         AXUIElementSetAttributeValue(window, kAXFocusedAttribute as CFString, kCFBooleanTrue)
-        // Also ask the window's owning app to come forward when we only have the window ref.
         var pid: pid_t = 0
         if AXUIElementGetPid(window, &pid) == .success, pid != 0 {
             let appElement = AXUIElementCreateApplication(pid)
             AXUIElementSetAttributeValue(appElement, kAXFrontmostAttribute as CFString, kCFBooleanTrue)
             if let app = NSRunningApplication(processIdentifier: pid) {
-                _ = app.activate(options: [.activateIgnoringOtherApps])
+                _ = app.activate(options: [.activateIgnoringOtherApps, .activateAllWindows])
             }
         }
         return raised

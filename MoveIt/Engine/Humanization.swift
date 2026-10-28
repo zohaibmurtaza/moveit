@@ -2,6 +2,23 @@ import Foundation
 import CoreGraphics
 import AppKit
 
+/// Which scroll axes reading-style bursts may use.
+enum ScrollAxisMode: String, CaseIterable, Identifiable, Codable {
+    case vertical = "Vertical"
+    case horizontal = "Horizontal"
+    case both = "Vertical + Horizontal"
+
+    var id: String { rawValue }
+
+    var detail: String {
+        switch self {
+        case .vertical: return "Up/down reading scrolls with reverse at the end."
+        case .horizontal: return "Side-to-side pans (wide pages, boards)."
+        case .both: return "Mostly vertical, with occasional horizontal pans."
+        }
+    }
+}
+
 enum ActivityProfile: String, CaseIterable, Identifiable {
     case subtle = "Subtle"
     case office = "Office"
@@ -74,6 +91,12 @@ struct Point2D: Equatable {
 /// Generates human-like relative mouse deltas, idle gaps, and key rhythms.
 struct Humanization {
     private var rng = SystemRandomNumberGenerator()
+    private var cursorSurface: CursorSurface = .editor
+    private var cursorBudget = 0
+    private var cursorCycleStarted = false
+    private var slackMove: SlackMove = .channel
+    private var slackBudget = 0
+    private var slackCycleStarted = false
 
     mutating func nextIdleGap(profile: ActivityProfile, intensity: Double) -> TimeInterval {
         // Log-normal gaps: lots of short pauses, occasional long "thinking" pauses.
@@ -114,10 +137,17 @@ struct Humanization {
     /// cursor does not grind along a display edge.
     mutating func mousePath(
         distanceHint: Double,
-        profile: ActivityProfile
+        profile: ActivityProfile,
+        primaryDisplayOnly: Bool = false,
+        within: CGRect? = nil
     ) -> [(dx: Int, dy: Int, delay: TimeInterval)] {
         let current = cursorCGPoint()
-        let inset = activeVisibleInset(margin: 56)
+        let inset: CGRect
+        if let within, within.width > 40, within.height > 40 {
+            inset = within
+        } else {
+            inset = activeVisibleInset(margin: 56, primaryDisplayOnly: primaryDisplayOnly)
+        }
         let start = Point2D(x: current.x, y: current.y)
 
         // If already near/outside the safe inset, pull toward the center first.
@@ -138,6 +168,125 @@ struct Humanization {
         }
 
         return deltas(from: samples, profile: profile)
+    }
+
+    /// Move into a CG-space rectangle (origin top-left). Empty when already there.
+    mutating func mousePath(
+        into rect: CGRect,
+        profile: ActivityProfile
+    ) -> [(dx: Int, dy: Int, delay: TimeInterval)] {
+        guard rect.width >= 24, rect.height >= 24 else { return [] }
+        let padX = min(10, rect.width * 0.12)
+        let padY = min(10, rect.height * 0.12)
+        let inset = rect.insetBy(dx: padX, dy: padY)
+        guard inset.width > 2, inset.height > 2 else { return [] }
+        let target = CGPoint(
+            x: CGFloat.random(in: inset.minX...inset.maxX, using: &rng),
+            y: CGFloat.random(in: inset.minY...inset.maxY, using: &rng)
+        )
+        let start = cursorCGPoint()
+        let startP = Point2D(x: start.x, y: start.y)
+        let endP = Point2D(x: target.x, y: target.y)
+        if startP.distance(to: endP) < 8 { return [] }
+        return deltas(from: bezierSamples(from: startP, to: endP, profile: profile), profile: profile)
+    }
+
+    /// Move to an exact CG point (origin top-left). Empty when already there.
+    mutating func mousePath(
+        to target: CGPoint,
+        profile: ActivityProfile
+    ) -> [(dx: Int, dy: Int, delay: TimeInterval)] {
+        let start = cursorCGPoint()
+        let startP = Point2D(x: start.x, y: start.y)
+        let endP = Point2D(x: target.x, y: target.y)
+        if startP.distance(to: endP) < 6 { return [] }
+        return deltas(from: bezierSamples(from: startP, to: endP, profile: profile), profile: profile)
+    }
+
+    /// Rotate through Cursor surfaces and stay on each one for a few actions.
+    /// The first action of a visit is the one that changes tabs.
+    mutating func planCursorAction(enabled: [CursorSurface]) -> (surface: CursorSurface, switchTabs: Bool)? {
+        guard !enabled.isEmpty else { return nil }
+        var switchTabs = false
+        if cursorBudget <= 0 || !enabled.contains(cursorSurface) {
+            if cursorCycleStarted, let idx = enabled.firstIndex(of: cursorSurface) {
+                cursorSurface = enabled[(idx + 1) % enabled.count]
+            } else if !enabled.contains(cursorSurface) {
+                cursorSurface = enabled[0]
+            }
+            cursorCycleStarted = true
+            cursorBudget = Int.random(in: 3...6, using: &rng)
+            switchTabs = true
+        }
+        cursorBudget -= 1
+        return (cursorSurface, switchTabs)
+    }
+
+    /// Rotate Slack actions. Channel and message visits linger; search, threads, and orgs are brief.
+    mutating func planSlackMove(enabled: [SlackMove]) -> (move: SlackMove, switching: Bool)? {
+        guard !enabled.isEmpty else { return nil }
+        var switching = false
+        if slackBudget <= 0 || !enabled.contains(slackMove) {
+            if slackCycleStarted, let idx = enabled.firstIndex(of: slackMove) {
+                slackMove = enabled[(idx + 1) % enabled.count]
+            } else if !enabled.contains(slackMove) {
+                slackMove = enabled[0]
+            }
+            slackCycleStarted = true
+            switch slackMove {
+            case .channel, .messages:
+                slackBudget = Int.random(in: 2...4, using: &rng)
+            case .thread, .closeThread, .search, .workspace:
+                slackBudget = 1
+            }
+            switching = true
+        }
+        slackBudget -= 1
+        return (slackMove, switching)
+    }
+
+    mutating func cursorFocusEditorChord() -> KeyChord {
+        KeyChord(
+            modifiers: [.leftCommand],
+            key: .digit1,
+            holdMs: UInt64.random(in: 35...60, using: &rng),
+            gap: 0.16,
+            label: "⌘1 (editor)"
+        )
+    }
+
+    mutating func cursorFileTabChord() -> KeyChord {
+        let forward = Bool.random(using: &rng)
+        return KeyChord(
+            modifiers: [.leftOption, .leftCommand],
+            key: forward ? .rightArrow : .leftArrow,
+            holdMs: UInt64.random(in: 35...65, using: &rng),
+            gap: 0.22,
+            label: forward ? "⌥⌘→ (next file)" : "⌥⌘← (previous file)"
+        )
+    }
+
+    mutating func cursorTerminalTabChord() -> KeyChord {
+        let forward = Bool.random(using: &rng)
+        return KeyChord(
+            modifiers: [.leftCommand, .leftShift],
+            key: forward ? .rightBracket : .leftBracket,
+            holdMs: UInt64.random(in: 35...65, using: &rng),
+            gap: 0.22,
+            label: forward ? "⌘⇧] (next terminal)" : "⌘⇧[ (previous terminal)"
+        )
+    }
+
+    /// Same arrows as file tabs. Cursor uses them for chats only while the chat pane is focused.
+    mutating func cursorChatTabChord() -> KeyChord {
+        let forward = Bool.random(using: &rng)
+        return KeyChord(
+            modifiers: [.leftOption, .leftCommand],
+            key: forward ? .rightArrow : .leftArrow,
+            holdMs: UInt64.random(in: 35...65, using: &rng),
+            gap: 0.24,
+            label: forward ? "⌥⌘→ (next chat)" : "⌥⌘← (previous chat)"
+        )
     }
 
     mutating func localJitterPath(profile: ActivityProfile) -> [(dx: Int, dy: Int, delay: TimeInterval)] {
@@ -169,20 +318,171 @@ struct Humanization {
         return events
     }
 
-    mutating func scrollTicks(profile: ActivityProfile) -> [(dy: Int, delay: TimeInterval)] {
-        let count = Int.random(in: 1...3, using: &rng)
-        let direction = Bool.random(using: &rng) ? 1 : -1
-        return (0..<count).map { _ in
-            let dy = direction * Int.random(in: 1...2, using: &rng)
-            let delay = Double.random(in: 0.05...0.18, using: &rng)
-            return (dy, delay)
+    /// Reading-style scroll: sustained motion in a primary direction, light
+    /// corrections, then often reverse (as if hitting the end of a page).
+    mutating func readingScrollTicks(
+        profile: ActivityProfile,
+        intensity: Double,
+        axes: ScrollAxisMode
+    ) -> [(dx: Int, dy: Int, delay: TimeInterval)] {
+        let intensity = min(1, max(0.15, intensity))
+        let baseCount: Int
+        switch profile {
+        case .subtle: baseCount = Int.random(in: 6...12, using: &rng)
+        case .office: baseCount = Int.random(in: 10...22, using: &rng)
+        case .intensive: baseCount = Int.random(in: 16...34, using: &rng)
         }
+        let count = max(4, Int((Double(baseCount) * (0.55 + intensity * 0.9)).rounded()))
+        let tickMag = max(1, Int((1.0 + intensity * 3.5).rounded()))
+
+        // Prefer “read down / across”, then reverse for a return pass.
+        let primarySign = Bool.random(using: &rng) ? -1 : 1
+        let reverseAt = min(
+            count - 1,
+            max(1, Int((Double(count) * Double.random(in: 0.55...0.78, using: &rng)).rounded()))
+        )
+
+        var events: [(dx: Int, dy: Int, delay: TimeInterval)] = []
+        events.reserveCapacity(count)
+
+        for i in 0..<count {
+            let sign = i < reverseAt ? primarySign : -primarySign
+            var dx = 0
+            var dy = 0
+            let mag = Int.random(in: max(1, tickMag - 1)...(tickMag + 1), using: &rng)
+
+            switch axes {
+            case .vertical:
+                dy = sign * mag
+            case .horizontal:
+                dx = sign * mag
+            case .both:
+                // Mostly vertical reading with occasional horizontal pans.
+                if Double.random(in: 0...1, using: &rng) < 0.22 {
+                    dx = sign * max(1, mag - 1)
+                } else {
+                    dy = sign * mag
+                }
+            }
+
+            // Tiny opposite nudge — human “overshoot / re-read”.
+            if Double.random(in: 0...1, using: &rng) < 0.08 {
+                if dy != 0 { dy = -dy / abs(dy) }
+                if dx != 0 { dx = -dx / abs(dx) }
+            }
+
+            guard dx != 0 || dy != 0 else { continue }
+
+            let pause: TimeInterval
+            if i == reverseAt {
+                pause = Double.random(in: 0.35...0.9, using: &rng) // pause at “end”
+            } else if Double.random(in: 0...1, using: &rng) < 0.12 {
+                pause = Double.random(in: 0.22...0.55, using: &rng) // reading pause
+            } else {
+                pause = Double.random(in: 0.04...0.16, using: &rng)
+            }
+            events.append((dx, dy, pause))
+        }
+        // Guarantee at least a short reading flick if RNG skipped everything.
+        if events.isEmpty {
+            let sign = primarySign
+            switch axes {
+            case .vertical, .both:
+                events.append((0, sign * tickMag, 0.08))
+                events.append((0, -sign * tickMag, 0.08))
+            case .horizontal:
+                events.append((sign * tickMag, 0, 0.08))
+                events.append((-sign * tickMag, 0, 0.08))
+            }
+        }
+        return events
+    }
+
+    /// Browser tab chords: ⌘1–9, ⌃Tab / ⌃⇧Tab, or ⌘⌥←/→ (Chrome-style).
+    mutating func browserTabChord() -> KeyChord {
+        let hold = UInt64.random(in: 35...70, using: &rng)
+        let gap = Double.random(in: 0.12...0.4, using: &rng)
+        let roll = Double.random(in: 0...1, using: &rng)
+
+        if roll < 0.42 {
+            let digits: [(SafeHIDKey, String)] = [
+                (.digit1, "1"), (.digit2, "2"), (.digit3, "3"),
+                (.digit4, "4"), (.digit5, "5"), (.digit6, "6"),
+                (.digit7, "7"), (.digit8, "8"), (.digit9, "9")
+            ]
+            let pick = digits.randomElement(using: &rng) ?? (.digit1, "1")
+            return KeyChord(
+                modifiers: [.leftCommand],
+                key: pick.0,
+                holdMs: hold,
+                gap: gap,
+                label: "⌘\(pick.1) (tab)"
+            )
+        }
+        if roll < 0.72 {
+            let reverse = Bool.random(using: &rng)
+            return KeyChord(
+                modifiers: reverse ? [.leftControl, .leftShift] : [.leftControl],
+                key: .tab,
+                holdMs: hold,
+                gap: gap,
+                label: reverse ? "⌃⇧Tab (prev tab)" : "⌃Tab (next tab)"
+            )
+        }
+        let reverse = Bool.random(using: &rng)
+        return KeyChord(
+            modifiers: [.leftCommand, .leftOption],
+            key: reverse ? .leftArrow : .rightArrow,
+            holdMs: hold,
+            gap: gap,
+            label: reverse ? "⌘⌥← (prev tab)" : "⌘⌥→ (next tab)"
+        )
+    }
+
+    /// Pick the next work rhythm phase. Each lasts 2–6 minutes of wall time
+    /// before shifting, weighted so transitions feel natural.
+    mutating func nextWorkRhythm(current: WorkRhythm?) -> WorkRhythm {
+        let candidates: [(WorkRhythm, Double)]
+        switch current {
+        case .typing:   candidates = [(.reading, 0.30), (.mixed, 0.25), (.quiet, 0.20), (.navigation, 0.15), (.typing, 0.10)]
+        case .reading:  candidates = [(.typing, 0.25), (.navigation, 0.25), (.mixed, 0.20), (.quiet, 0.20), (.reading, 0.10)]
+        case .navigation: candidates = [(.mixed, 0.30), (.typing, 0.20), (.reading, 0.20), (.quiet, 0.20), (.navigation, 0.10)]
+        case .mixed:    candidates = [(.typing, 0.25), (.reading, 0.25), (.quiet, 0.20), (.navigation, 0.20), (.mixed, 0.10)]
+        case .quiet:    candidates = [(.typing, 0.30), (.reading, 0.25), (.mixed, 0.25), (.navigation, 0.15), (.quiet, 0.05)]
+        case nil:       candidates = [(.mixed, 0.35), (.typing, 0.25), (.reading, 0.20), (.navigation, 0.10), (.quiet, 0.10)]
+        }
+        let roll = Double.random(in: 0...1, using: &rng)
+        var sum: Double = 0
+        for (rhythm, weight) in candidates {
+            sum += weight
+            if roll <= sum { return rhythm }
+        }
+        return candidates.last?.0 ?? .mixed
+    }
+
+    /// Duration a work rhythm phase lasts before shifting.
+    mutating func rhythmPhaseDuration() -> TimeInterval {
+        Double.random(in: 120...360, using: &rng)
+    }
+
+    /// Micro-break duration (30–120 seconds).
+    mutating func microBreakDuration() -> TimeInterval {
+        Double.random(in: 30...120, using: &rng)
+    }
+
+    /// Schedule next micro-break using the frequency setting.
+    mutating func nextMicroBreakDelay(frequency: MicroBreakFrequency) -> TimeInterval {
+        let breaksPerHour = Int.random(in: frequency.breaksPerHourRange, using: &rng)
+        guard breaksPerHour > 0 else { return 3600 }
+        let avgInterval = 3600.0 / Double(breaksPerHour)
+        return avgInterval * Double.random(in: 0.5...1.5, using: &rng)
     }
 
     /// Silent by default (quiet modifiers). Optional character/number/arrow pool.
     mutating func keySequence(
         profile: ActivityProfile,
-        allowCharacters: Bool
+        allowCharacters: Bool,
+        wpm: Double = 40
     ) -> [(key: SafeHIDKey, holdMs: UInt64, gap: TimeInterval)] {
         let pool: [SafeHIDKey]
         if allowCharacters {
@@ -207,12 +507,72 @@ struct Humanization {
         case .intensive: length = Int.random(in: 2...4, using: &rng)
         }
 
+        let baseGap = wpmToGap(wpm)
         return (0..<length).map { _ in
             let key = pool.randomElement(using: &rng) ?? .leftShift
             let hold = UInt64.random(in: 28...70, using: &rng)
-            let gap = Double.random(in: 0.06...0.28, using: &rng)
+            let gap = baseGap * Double.random(in: 0.6...1.5, using: &rng)
             return (key, hold, gap)
         }
+    }
+
+    /// Natural character typing: word-level bursts with varied speed, spaces,
+    /// and occasional typo + backspace correction.
+    mutating func naturalTypingSequence(
+        profile: ActivityProfile,
+        wpm: Double = 40
+    ) -> [(key: SafeHIDKey, holdMs: UInt64, gap: TimeInterval)] {
+        let wordCount: Int
+        switch profile {
+        case .subtle: wordCount = Int.random(in: 2...5, using: &rng)
+        case .office: wordCount = Int.random(in: 4...10, using: &rng)
+        case .intensive: wordCount = Int.random(in: 6...16, using: &rng)
+        }
+
+        let baseGap = wpmToGap(wpm)
+        var events: [(key: SafeHIDKey, holdMs: UInt64, gap: TimeInterval)] = []
+
+        for wordIdx in 0..<wordCount {
+            let wordLen = Int.random(in: 2...8, using: &rng)
+
+            for charIdx in 0..<wordLen {
+                let letter = SafeHIDKey.letterKeys.randomElement(using: &rng) ?? .a
+                let hold = UInt64.random(in: 25...65, using: &rng)
+                var gap = baseGap * Double.random(in: 0.55...1.4, using: &rng)
+
+                // Occasional typo: type a wrong letter, pause, then backspace + retype.
+                if charIdx > 0, Double.random(in: 0...1, using: &rng) < 0.06 {
+                    let wrongKey = SafeHIDKey.letterKeys.randomElement(using: &rng) ?? .s
+                    events.append((wrongKey, hold, gap * 0.7))
+                    let hesitation = Double.random(in: 0.15...0.45, using: &rng)
+                    events.append((.backspace, UInt64.random(in: 30...50, using: &rng), hesitation))
+                    gap = baseGap * Double.random(in: 0.4...0.8, using: &rng)
+                }
+
+                events.append((letter, hold, gap))
+            }
+
+            // Space between words (not after last word).
+            if wordIdx < wordCount - 1 {
+                let spaceGap = baseGap * Double.random(in: 0.8...1.6, using: &rng)
+                events.append((.space, UInt64.random(in: 25...50, using: &rng), spaceGap))
+            }
+
+            // Occasional longer pause between words (thinking).
+            if Double.random(in: 0...1, using: &rng) < 0.15 {
+                if let last = events.last {
+                    events[events.count - 1] = (last.key, last.holdMs, last.gap + Double.random(in: 0.3...1.2, using: &rng))
+                }
+            }
+        }
+        return events
+    }
+
+    /// Convert WPM to approximate gap between keystrokes.
+    private func wpmToGap(_ wpm: Double) -> TimeInterval {
+        let safeWPM = max(10, min(120, wpm))
+        let charsPerMinute = safeWPM * 5.0
+        return 60.0 / charsPerMinute
     }
 
     /// App / window / browser-tab switching chords.
@@ -271,11 +631,16 @@ struct Humanization {
         return CGPoint(x: location.x, y: screenHeight - location.y)
     }
 
-    private func activeVisibleInset(margin: CGFloat) -> CGRect {
+    private func activeVisibleInset(margin: CGFloat, primaryDisplayOnly: Bool = false) -> CGRect {
         let location = NSEvent.mouseLocation
-        let screen = NSScreen.screens.first { NSMouseInRect(location, $0.frame, false) }
-            ?? NSScreen.main
-            ?? NSScreen.screens.first
+        let screen: NSScreen?
+        if primaryDisplayOnly {
+            screen = NSScreen.main ?? NSScreen.screens.first
+        } else {
+            screen = NSScreen.screens.first { NSMouseInRect(location, $0.frame, false) }
+                ?? NSScreen.main
+                ?? NSScreen.screens.first
+        }
         let visible = screen?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
         let screenHeight = NSScreen.screens.map(\.frame.maxY).max() ?? visible.maxY
         // Convert AppKit bottom-left visibleFrame → CG top-left space.

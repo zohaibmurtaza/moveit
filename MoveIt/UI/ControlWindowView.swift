@@ -23,8 +23,11 @@ struct ControlWindowView: View {
                             window.styleMask.remove(.resizable)
                             window.styleMask.insert(.titled)
                             // Match ControlsView.windowWidth / windowHeight — stable across tabs.
-                            window.minSize = NSSize(width: 720, height: 580)
-                            let target = NSSize(width: 720, height: 580)
+                            let target = NSSize(
+                                width: ControlsView.windowWidth,
+                                height: ControlsView.windowHeight
+                            )
+                            window.minSize = target
                             if abs(window.frame.width - target.width) > 1
                                 || abs(window.frame.height - target.height) > 1
                             {

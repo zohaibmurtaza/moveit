@@ -30,9 +30,102 @@ private enum ControlsWindowPane: String, CaseIterable, Identifiable, Hashable {
         }
     }
 
+    var subtitle: String {
+        switch self {
+        case .activity:
+            return "Arms after idle, then simulates human-like activity."
+        case .keyboard:
+            return "Silent keys by default; characters are optional."
+        case .switching:
+            return "Apps, fullscreen Spaces, and browser tabs."
+        case .appearance:
+            return "Menu bar icon for this Mac."
+        case .status:
+            return "Live stream of past, current, and upcoming actions."
+        }
+    }
+
     /// Settings-style sidebar groups.
     static let simulationPanes: [ControlsWindowPane] = [.activity, .keyboard, .switching]
     static let appPanes: [ControlsWindowPane] = [.appearance, .status]
+}
+
+/// Sidebar destination: a settings page, or one supported app under Apps.
+private enum SidebarSelection: Hashable {
+    case pane(ControlsWindowPane)
+    case app(SpecificApp)
+
+    var title: String {
+        switch self {
+        case .pane(let pane): return pane.title
+        case .app(let app): return app.title
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .pane(let pane): return pane.subtitle
+        case .app(let app): return app.summary
+        }
+    }
+}
+
+/// Apps that have their own activity, separate from the general simulation.
+/// Add a case here when another app gets dedicated controls.
+private enum SpecificApp: String, CaseIterable, Identifiable {
+    case cursor
+    case slack
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .cursor: return "Cursor"
+        case .slack: return "Slack"
+        }
+    }
+
+    var summary: String {
+        switch self {
+        case .cursor: return "Explorer, editor lines, terminals, and chats."
+        case .slack: return "Channels, search, threads, and workspaces."
+        }
+    }
+
+    var fallbackSymbol: String {
+        switch self {
+        case .cursor: return "chevron.left.forwardslash.chevron.right"
+        case .slack: return "number"
+        }
+    }
+
+    var bundleID: String {
+        switch self {
+        case .cursor: return CursorActivity.bundleID
+        case .slack: return SlackActivity.bundleID
+        }
+    }
+
+    var icon: NSImage? {
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
+            return nil
+        }
+        return NSWorkspace.shared.icon(forFile: url.path)
+    }
+
+    var isRunning: Bool {
+        switch self {
+        case .cursor: return CursorActivity.isRunning
+        case .slack: return SlackActivity.isRunning
+        }
+    }
+
+    func isEnabled(_ engine: ActivityEngine) -> Bool {
+        switch self {
+        case .cursor: return engine.cursorModeEnabled
+        case .slack: return engine.slackModeEnabled
+        }
+    }
 }
 
 /// Shared controls used by the main window and the menu bar panel.
@@ -41,9 +134,17 @@ struct ControlsView: View {
     var compact: Bool = false
 
     @State private var accessibilityTrusted = Permissions.hasAccessibility
+    @State private var screenRecordingReady = Permissions.canReadWindowTitles
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
-    @State private var windowPane: ControlsWindowPane = .activity
+    @State private var sidebarSelection: SidebarSelection = .pane(.activity)
+    @State private var appsExpanded = true
+    @State private var disguiseName: String = BuildIdentity.disguiseName ?? ""
+    @State private var disguiseEnabled: Bool = BuildIdentity.isDisguised
     @AppStorage(MenuBarIconOption.storageKey) private var menuBarIconRaw = MenuBarIconOption.moveit.rawValue
+
+    private var needsPermissions: Bool {
+        !accessibilityTrusted || !screenRecordingReady
+    }
 
     var body: some View {
         Group {
@@ -66,10 +167,11 @@ struct ControlsView: View {
             header(compact: true)
                 .padding(.bottom, 12)
 
-            if !accessibilityTrusted {
+            if needsPermissions {
                 Divider()
                 PermissionsView(isTrusted: $accessibilityTrusted)
                     .padding(.vertical, 12)
+                    .onChange(of: accessibilityTrusted) { _ in refreshPermissions() }
             }
 
             Divider()
@@ -116,27 +218,35 @@ struct ControlsView: View {
 
     // MARK: - Main window
 
-    private static let windowWidth: CGFloat = 720
-    private static let windowHeight: CGFloat = 580
+    static let windowWidth: CGFloat = 840
+    static let windowHeight: CGFloat = 700
 
     private var windowBody: some View {
         NavigationSplitView {
-            List(selection: $windowPane) {
+            List(selection: $sidebarSelection) {
                 Section("Simulation") {
                     ForEach(ControlsWindowPane.simulationPanes) { pane in
                         Label(pane.title, systemImage: pane.systemImage)
-                            .tag(pane)
+                            .tag(SidebarSelection.pane(pane))
+                    }
+                    DisclosureGroup(isExpanded: $appsExpanded) {
+                        ForEach(SpecificApp.allCases) { app in
+                            sidebarAppRow(app)
+                                .tag(SidebarSelection.app(app))
+                        }
+                    } label: {
+                        Label("Apps", systemImage: "square.grid.2x2")
                     }
                 }
                 Section("App") {
                     ForEach(ControlsWindowPane.appPanes) { pane in
                         Label(pane.title, systemImage: pane.systemImage)
-                            .tag(pane)
+                            .tag(SidebarSelection.pane(pane))
                     }
                 }
             }
             .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 160, ideal: 180, max: 220)
+            .navigationSplitViewColumnWidth(min: 176, ideal: 200, max: 240)
         } detail: {
             VStack(spacing: 0) {
                 ScrollView {
@@ -152,38 +262,62 @@ struct ControlsView: View {
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
             }
-            .navigationTitle(windowPane.title)
+            .navigationTitle(sidebarSelection.title)
             #if os(macOS)
-            .navigationSubtitle(detailSubtitle)
+            .navigationSubtitle(sidebarSelection.subtitle)
             #endif
         }
         .navigationSplitViewStyle(.balanced)
         .frame(width: Self.windowWidth, height: Self.windowHeight)
     }
 
-    private var detailSubtitle: String {
-        switch windowPane {
-        case .activity:
-            return "Arms after idle, then simulates human-like activity."
-        case .keyboard:
-            return "Silent keys by default; characters are optional."
-        case .switching:
-            return "Only switch among apps and windows you select."
-        case .appearance:
-            return "Menu bar icon for this Mac."
-        case .status:
-            return "Live stream of past, current, and upcoming actions."
+    @ViewBuilder
+    private var windowPaneContent: some View {
+        switch sidebarSelection {
+        case .pane(let pane):
+            paneContent(pane)
+        case .app(let app):
+            appControls(app)
         }
     }
 
     @ViewBuilder
-    private var windowPaneContent: some View {
+    private func paneContent(_ windowPane: ControlsWindowPane) -> some View {
         switch windowPane {
         case .activity:
             activityPane
         case .keyboard:
-            VStack(alignment: .leading, spacing: 16) {
-                keyboardSettings
+            VStack(alignment: .leading, spacing: 18) {
+                settingsCard(title: "Keyboard mode") {
+                    keyboardSettings
+                }
+
+                if engine.includeKeyboard {
+                    settingsCard(
+                        title: "Typing speed",
+                        trailing: "\(Int(engine.keyboardWPM)) WPM",
+                        footer: "Controls how fast keys are pressed during keyboard activity."
+                    ) {
+                        labeledSlider(
+                            title: "Words per minute",
+                            valueLabel: "\(Int(engine.keyboardWPM))",
+                            value: $engine.keyboardWPM,
+                            range: 10...120,
+                            step: 5
+                        )
+                    }
+
+                    if engine.allowCharacterKeys {
+                        settingsCard(
+                            title: "Natural typing",
+                            footer: engine.naturalTypingEnabled
+                                ? "Types word-level bursts with occasional typos and backspace corrections for realistic patterns."
+                                : "Individual random key taps without word structure."
+                        ) {
+                            Toggle("Type with corrections", isOn: $engine.naturalTypingEnabled)
+                        }
+                    }
+                }
             }
         case .switching:
             VStack(alignment: .leading, spacing: 16) {
@@ -191,7 +325,7 @@ struct ControlsView: View {
                 Text(
                     engine.switchTargets.isEmpty
                         ? "Select at least two apps below. MoveIt will only switch among those — never the whole Dock via ⌘Tab."
-                        : "Activates your selected apps/windows. Browser tab chords (⌃Tab) only while one of those browsers is frontmost."
+                        : "Activates your selected apps/windows, including fullscreen ones on other Spaces."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -199,6 +333,28 @@ struct ControlsView: View {
 
                 if engine.allowAppNavigation {
                     switchIntervalSliders
+                }
+
+                Divider()
+
+                Toggle("Browser tab switching", isOn: $engine.allowTabSwitching)
+                if engine.allowTabSwitching {
+                    Picker("Tab scope", selection: $engine.tabSwitchScope) {
+                        ForEach(TabSwitchScope.allCases) { scope in
+                            Text(scope.rawValue).tag(scope)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    Text(engine.tabSwitchScope.detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text("When Chrome, Safari, or another browser is frontmost: ⌘1–9, ⌃Tab, and ⌘⌥←/→.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Divider()
@@ -233,6 +389,53 @@ struct ControlsView: View {
                 ) {
                     menuBarIconPicker
                 }
+
+                settingsCard(
+                    title: "Global hotkeys",
+                    footer: "Work system-wide, even when MoveIt is hidden in the menu bar."
+                ) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        hotkeyRow(keys: "⌃⇧U", action: "Start simulation")
+                        hotkeyRow(keys: "⌃⇧K", action: "Stop simulation")
+                        hotkeyRow(keys: "⌃⇧0", action: "Emergency stop (quit)")
+                    }
+                }
+
+                settingsCard(
+                    title: "Disguise",
+                    footer: disguiseEnabled
+                        ? "Process name shown in Activity Monitor and `ps`. Relaunch for full effect."
+                        : "Show an innocuous process name instead of MoveIt."
+                ) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle("Custom process name", isOn: $disguiseEnabled)
+                            .onChange(of: disguiseEnabled) { enabled in
+                                if enabled {
+                                    if disguiseName.isEmpty { disguiseName = "UserEventAgent" }
+                                    BuildIdentity.disguiseName = disguiseName
+                                } else {
+                                    BuildIdentity.disguiseName = nil
+                                    disguiseName = ""
+                                }
+                            }
+                        if disguiseEnabled {
+                            TextField("Process name", text: $disguiseName)
+                                .textFieldStyle(.roundedBorder)
+                                .onSubmit {
+                                    BuildIdentity.disguiseName = disguiseName.isEmpty ? nil : disguiseName
+                                    if disguiseName.isEmpty { disguiseEnabled = false }
+                                }
+                                .onChange(of: disguiseName) { name in
+                                    if !name.isEmpty {
+                                        BuildIdentity.disguiseName = name
+                                    }
+                                }
+                            Text("Suggestions: UserEventAgent, WindowServer, CoreServicesUIAgent")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
             }
         case .status:
             VStack(alignment: .leading, spacing: 16) {
@@ -259,9 +462,10 @@ struct ControlsView: View {
     /// Activity tab: grouped cards so style / busy / idle / login don’t run together.
     private var activityPane: some View {
         VStack(alignment: .leading, spacing: 18) {
-            if !accessibilityTrusted {
+            if needsPermissions {
                 settingsCard(title: "Permissions") {
                     PermissionsView(isTrusted: $accessibilityTrusted)
+                        .onChange(of: accessibilityTrusted) { _ in refreshPermissions() }
                 }
             }
 
@@ -322,6 +526,65 @@ struct ControlsView: View {
                     }
                     .padding(.top, 2)
                 }
+            }
+
+            settingsCard(
+                title: "Scrolling",
+                trailing: "\(Int(engine.scrollIntensity * 100))%",
+                footer: engine.scrollAxes.detail
+            ) {
+                VStack(alignment: .leading, spacing: 14) {
+                    labeledSlider(
+                        title: "Intensity",
+                        valueLabel: "\(Int(engine.scrollIntensity * 100))%",
+                        value: $engine.scrollIntensity,
+                        range: 0.15...1.0,
+                        step: 0.05
+                    )
+                    Picker("Direction", selection: $engine.scrollAxes) {
+                        ForEach(ScrollAxisMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                }
+            }
+
+            settingsCard(
+                title: "Micro-breaks",
+                footer: engine.microBreaksEnabled ? engine.microBreakFrequency.detail : "Off — continuous simulation without pauses."
+            ) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Toggle("Enable micro-breaks", isOn: $engine.microBreaksEnabled)
+                    if engine.microBreaksEnabled {
+                        Picker("Frequency", selection: $engine.microBreakFrequency) {
+                            ForEach(MicroBreakFrequency.allCases) { freq in
+                                Text(freq.rawValue).tag(freq)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                    }
+                }
+            }
+
+            settingsCard(
+                title: "Work rhythms",
+                trailing: engine.adaptiveRhythmsEnabled ? engine.currentRhythm.label : "Off",
+                footer: engine.adaptiveRhythmsEnabled
+                    ? "Activity shifts between typing, reading, navigation, mixed, and quiet phases every 2–6 minutes."
+                    : "Off — actions are picked uniformly at random."
+            ) {
+                Toggle("Adaptive work rhythms", isOn: $engine.adaptiveRhythmsEnabled)
+            }
+
+            settingsCard(
+                title: "Display",
+                footer: engine.primaryDisplayOnly
+                    ? "Mouse movement stays on your primary display."
+                    : "Mouse can move across all connected displays."
+            ) {
+                Toggle("Primary display only", isOn: $engine.primaryDisplayOnly)
             }
 
             settingsCard(title: "Startup") {
@@ -505,6 +768,131 @@ struct ControlsView: View {
             }
     }
 
+    private func sidebarAppRow(_ app: SpecificApp) -> some View {
+        HStack(spacing: 6) {
+            if let image = app.icon {
+                Image(nsImage: image)
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: 16, height: 16)
+                    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+            } else {
+                Image(systemName: app.fallbackSymbol)
+                    .frame(width: 16, height: 16)
+            }
+            Text(app.title)
+        }
+        .accessibilityLabel(app.title)
+    }
+
+    @ViewBuilder
+    private func appControls(_ app: SpecificApp) -> some View {
+        switch app {
+        case .cursor:
+            cursorControls
+        case .slack:
+            slackControls
+        }
+    }
+
+    private var cursorControls: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            settingsCard(
+                title: "Cursor",
+                trailing: engine.cursorModeEnabled ? "\(Int(engine.cursorTimeShare * 100))%" : "Off",
+                footer: "After you go idle, MoveIt comes back to Cursor within a few seconds and stays there for most of the session. It does not type into files, press Return, or accept an AI edit."
+            ) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Toggle("Use Cursor behavior", isOn: $engine.cursorModeEnabled)
+                    if engine.cursorModeEnabled {
+                        labeledSlider(
+                            title: "Time in Cursor",
+                            valueLabel: "\(Int(engine.cursorTimeShare * 100))%",
+                            value: $engine.cursorTimeShare,
+                            range: 0.4...0.9,
+                            step: 0.05
+                        )
+                    }
+                }
+            }
+
+            if engine.cursorModeEnabled {
+                settingsCard(
+                    title: "Inside Cursor",
+                    footer: "Follows the panels that are actually open. Widening chats or closing the editor moves the pointer with them, and the activity name matches that pane."
+                ) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle("Files", isOn: $engine.cursorEditorTabs)
+                        Text("Click a file in the left Explorer, then click different lines in the open file.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Toggle("Terminal tabs", isOn: $engine.cursorTerminalTabs)
+                        Text("Click the terminal body, then Command-Shift [ or ].")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Toggle("Chat tabs", isOn: $engine.cursorChatTabs)
+                        Text("Click the conversation, then Option-Command Left/Right.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    private var slackControls: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            settingsCard(
+                title: "Slack",
+                trailing: engine.slackModeEnabled ? "\(Int(engine.slackTimeShare * 100))%" : "Off",
+                footer: "After you go idle, MoveIt spends time in Slack. It does not type a message or press Return."
+            ) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Toggle("Use Slack behavior", isOn: $engine.slackModeEnabled)
+                    if engine.slackModeEnabled {
+                        labeledSlider(
+                            title: "Time in Slack",
+                            valueLabel: "\(Int(engine.slackTimeShare * 100))%",
+                            value: $engine.slackTimeShare,
+                            range: 0.4...0.9,
+                            step: 0.05
+                        )
+                    }
+                }
+            }
+
+            if engine.slackModeEnabled {
+                settingsCard(
+                    title: "Inside Slack",
+                    footer: "Moves through the sidebar and the conversation. Threads open from a message, then close again."
+                ) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle("Switch chats", isOn: $engine.slackSwitchChats)
+                        Text("Option-Up/Down, or a click in the channel list.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Toggle("Search", isOn: $engine.slackSearch)
+                        Text("Opens the search bar with Command-G, then closes it.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Toggle("Scroll chats and channels", isOn: $engine.slackScroll)
+                        Text("Scrolls the channel list and the open conversation.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Toggle("Threads", isOn: $engine.slackThreads)
+                        Text("Opens a thread while reading, scrolls it, then closes it.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Toggle("Switch organizations", isOn: $engine.slackOrganizations)
+                        Text("Control-Tab moves to the next workspace. Leave this off if you stay in one.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
     private var keyboardSettings: some View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle("Keyboard activity", isOn: $engine.includeKeyboard)
@@ -674,6 +1062,12 @@ struct ControlsView: View {
                     "Your idle",
                     "\(engine.userIdleSeconds)s / \(Int(engine.idleDebounceSeconds))s"
                 )
+                if engine.adaptiveRhythmsEnabled {
+                    labeled("Rhythm", engine.currentRhythm.label)
+                }
+                if engine.cursorModeEnabled {
+                    labeled("Cursor", CursorActivity.isFrontmost() ? "Front" : "Away")
+                }
             }
             labeled("Bursts", "\(engine.actionsCompleted)")
         }
@@ -693,7 +1087,22 @@ struct ControlsView: View {
         }
     }
 
+    private func hotkeyRow(keys: String, action: String) -> some View {
+        HStack {
+            Text(keys)
+                .font(.system(.caption, design: .monospaced).weight(.medium))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(RoundedRectangle(cornerRadius: 4).fill(Color.primary.opacity(0.06)))
+            Text(action)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+        }
+    }
+
     private func refreshPermissions() {
         accessibilityTrusted = Permissions.hasAccessibility
+        screenRecordingReady = Permissions.canReadWindowTitles
     }
 }
