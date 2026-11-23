@@ -42,12 +42,14 @@ Bump with:
 
 ## Ad-hoc vs Developer ID
 
-| Mode | Who can run it | How |
-| --- | --- | --- |
-| Ad-hoc (`CODE_SIGN_IDENTITY="-"`) | Same machine / tech users: drag to Applications, then open | `./Scripts/build-release.sh` |
-| Developer ID + Notarized | General public | Xcode Archive → Distribute → Developer ID → Notarize |
+| Mode | Who can run it | How | Accessibility / Screen Recording |
+| --- | --- | --- | --- |
+| Ad-hoc (`CODE_SIGN_IDENTITY="-"`) | Same machine / tech users: drag to Applications, then open | `./Scripts/build-release.sh` | **Re-grant on each update** — every zip has a new code hash, so macOS TCC treats it as a new app |
+| Developer ID + Notarized | General public | Xcode Archive → Distribute → Developer ID → Notarize | **Survives updates** — same Team ID + `com.moveit.MoveIt` keeps grants across Sparkle installs |
 
-Sparkle verifies **EdDSA** signatures on the zip regardless. Developer ID + notarization still improves Gatekeeper trust for first install.
+Sparkle verifies **EdDSA** signatures on the zip regardless. Developer ID + notarization also improves Gatekeeper trust for first install.
+
+**Users should not have to allow permissions on every update** once you ship Developer ID builds. Until then, call out in release notes that Accessibility and Screen Recording may need a one-time toggle after updating.
 
 `build-release.sh` re-signs Sparkle’s nested helpers with the same ad-hoc identity as the app. The app also uses `com.apple.security.cs.disable-library-validation` so the hardened runtime accepts the embedded Sparkle binary under ad-hoc signing. When you move to a real Developer ID team, re-sign Sparkle with that team and consider dropping the entitlement.
 

@@ -97,7 +97,7 @@ struct AppSwitchPickerView: View {
                 )
             } else if !Permissions.hasScreenRecording {
                 screenRecordingBanner(
-                    text: "Screen Recording is required to list fullscreen windows on other Spaces.",
+                    text: "Screen Recording is required to list fullscreen windows on other Spaces. If it’s already on in Settings, relaunch.",
                     primary: "Request Permission",
                     action: {
                         ensureScreenRecordingForWindows()
@@ -156,8 +156,9 @@ struct AppSwitchPickerView: View {
     }
 
     private func ensureScreenRecordingForWindows() {
-        guard !Permissions.hasScreenRecording else { return }
+        guard !Permissions.canReadWindowTitles else { return }
         _ = Permissions.ensureScreenRecording(prompt: true)
+        Permissions.markScreenRecordingRelaunchPending()
     }
 
     private func reload() {

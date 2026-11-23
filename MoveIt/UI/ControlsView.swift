@@ -75,6 +75,7 @@ private enum SidebarSelection: Hashable {
 private enum SpecificApp: String, CaseIterable, Identifiable {
     case cursor
     case slack
+    case claude
 
     var id: String { rawValue }
 
@@ -82,13 +83,15 @@ private enum SpecificApp: String, CaseIterable, Identifiable {
         switch self {
         case .cursor: return "Cursor"
         case .slack: return "Slack"
+        case .claude: return "Claude"
         }
     }
 
     var summary: String {
         switch self {
-        case .cursor: return "Explorer, editor lines, terminals, and chats."
+        case .cursor: return "Explorer, editor lines, terminal, chat, and agents."
         case .slack: return "Channels, search, threads, and workspaces."
+        case .claude: return "Chat, terminal, files, and changes panels."
         }
     }
 
@@ -96,6 +99,7 @@ private enum SpecificApp: String, CaseIterable, Identifiable {
         switch self {
         case .cursor: return "chevron.left.forwardslash.chevron.right"
         case .slack: return "number"
+        case .claude: return "sparkles"
         }
     }
 
@@ -103,6 +107,7 @@ private enum SpecificApp: String, CaseIterable, Identifiable {
         switch self {
         case .cursor: return CursorActivity.bundleID
         case .slack: return SlackActivity.bundleID
+        case .claude: return ClaudeActivity.bundleID
         }
     }
 
@@ -117,6 +122,7 @@ private enum SpecificApp: String, CaseIterable, Identifiable {
         switch self {
         case .cursor: return CursorActivity.isRunning
         case .slack: return SlackActivity.isRunning
+        case .claude: return ClaudeActivity.isRunning
         }
     }
 
@@ -124,6 +130,7 @@ private enum SpecificApp: String, CaseIterable, Identifiable {
         switch self {
         case .cursor: return engine.cursorModeEnabled
         case .slack: return engine.slackModeEnabled
+        case .claude: return engine.claudeModeEnabled
         }
     }
 }
@@ -201,16 +208,16 @@ struct ControlsView: View {
             }
             .padding(.vertical, 14)
 
-            if engine.isRunning {
-                Divider()
-                statusBlock
-                    .padding(.vertical, 12)
-            }
-
             Divider()
 
+            // Keep Start/Stop in a fixed place — status details expand below when running.
             compactActionRow
                 .padding(.top, 12)
+
+            if engine.isRunning {
+                statusBlock
+                    .padding(.top, 12)
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -334,6 +341,10 @@ struct ControlsView: View {
                 if engine.allowAppNavigation {
                     switchIntervalSliders
                 }
+
+                Divider()
+
+                tabSwitchIntervalSlider
 
                 Divider()
 
@@ -724,7 +735,26 @@ struct ControlsView: View {
         }
     }
 
+    private var tabSwitchIntervalSlider: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Min time between tab switches")
+                Spacer()
+                Text("\(Int(engine.tabSwitchIntervalMinSeconds))s")
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            Slider(value: $engine.tabSwitchIntervalMinSeconds, in: 10...180, step: 5)
+            Text("Applies to browser tabs, opening Cursor files, and clicking Claude panels. Each wait is a random time from this value up to 1.6× longer.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     private var switchIntervalSliders: some View {
+        // Fixed ranges — a dynamic `min...max` that collapses to a single point
+        // (both at 10s) traps SwiftUI's Slider Normalizing precondition with step > 0.
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -736,7 +766,7 @@ struct ControlsView: View {
                 }
                 Slider(
                     value: $engine.switchIntervalMinSeconds,
-                    in: 10...max(10, engine.switchIntervalMaxSeconds),
+                    in: 10...900,
                     step: 5
                 )
             }
@@ -750,7 +780,7 @@ struct ControlsView: View {
                 }
                 Slider(
                     value: $engine.switchIntervalMaxSeconds,
-                    in: max(10, engine.switchIntervalMinSeconds)...900,
+                    in: 10...900,
                     step: 5
                 )
             }
@@ -792,6 +822,8 @@ struct ControlsView: View {
             cursorControls
         case .slack:
             slackControls
+        case .claude:
+            claudeControls
         }
     }
 
@@ -800,13 +832,13 @@ struct ControlsView: View {
             settingsCard(
                 title: "Cursor",
                 trailing: engine.cursorModeEnabled ? "\(Int(engine.cursorTimeShare * 100))%" : "Off",
-                footer: "After you go idle, MoveIt comes back to Cursor within a few seconds and stays there for most of the session. It does not type into files, press Return, or accept an AI edit."
+                footer: "Leaves Cursor when the Switching min/max timer fires if other apps are selected. This slider only controls how often switches come back to Cursor. Does not type, press Return, or accept an AI edit."
             ) {
                 VStack(alignment: .leading, spacing: 12) {
                     Toggle("Use Cursor behavior", isOn: $engine.cursorModeEnabled)
                     if engine.cursorModeEnabled {
                         labeledSlider(
-                            title: "Time in Cursor",
+                            title: "Return to Cursor",
                             valueLabel: "\(Int(engine.cursorTimeShare * 100))%",
                             value: $engine.cursorTimeShare,
                             range: 0.4...0.9,
@@ -826,12 +858,16 @@ struct ControlsView: View {
                         Text("Click a file in the left Explorer, then click different lines in the open file.")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-                        Toggle("Terminal tabs", isOn: $engine.cursorTerminalTabs)
-                        Text("Click the terminal body, then Command-Shift [ or ].")
+                        Toggle("Terminal", isOn: $engine.cursorTerminalTabs)
+                        Text("Click deep in the terminal body and scroll. No panel-tab shortcuts.")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-                        Toggle("Chat tabs", isOn: $engine.cursorChatTabs)
-                        Text("Click the conversation, then Option-Command Left/Right.")
+                        Toggle("Chat", isOn: $engine.cursorChatTabs)
+                        Text("Scroll the conversation body only — never the header, composer, or fork/pin shortcuts.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Toggle("Agent mode", isOn: $engine.cursorAgentMode)
+                        Text("Scroll the Agents sidebar transcript only. No clicks or shortcuts.")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -845,13 +881,13 @@ struct ControlsView: View {
             settingsCard(
                 title: "Slack",
                 trailing: engine.slackModeEnabled ? "\(Int(engine.slackTimeShare * 100))%" : "Off",
-                footer: "After you go idle, MoveIt spends time in Slack. It does not type a message or press Return."
+                footer: "Leaves Slack when the Switching min/max timer fires if other apps are selected. This slider only controls how often switches come back to Slack. Does not type or press Return."
             ) {
                 VStack(alignment: .leading, spacing: 12) {
                     Toggle("Use Slack behavior", isOn: $engine.slackModeEnabled)
                     if engine.slackModeEnabled {
                         labeledSlider(
-                            title: "Time in Slack",
+                            title: "Return to Slack",
                             valueLabel: "\(Int(engine.slackTimeShare * 100))%",
                             value: $engine.slackTimeShare,
                             range: 0.4...0.9,
@@ -893,12 +929,61 @@ struct ControlsView: View {
         }
     }
 
+    private var claudeControls: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            settingsCard(
+                title: "Claude",
+                trailing: engine.claudeModeEnabled ? "\(Int(engine.claudeTimeShare * 100))%" : "Off",
+                footer: "Leave Claude when the Switching min/max timer fires (if other apps are selected). This slider only controls how often switches come back to Claude. Does not type, press Return, or send."
+            ) {
+                VStack(alignment: .leading, spacing: 12) {
+                    Toggle("Use Claude behavior", isOn: $engine.claudeModeEnabled)
+                    if engine.claudeModeEnabled {
+                        labeledSlider(
+                            title: "Return to Claude",
+                            valueLabel: "\(Int(engine.claudeTimeShare * 100))%",
+                            value: $engine.claudeTimeShare,
+                            range: 0.4...0.9,
+                            step: 0.05
+                        )
+                    }
+                }
+            }
+
+            if engine.claudeModeEnabled {
+                settingsCard(
+                    title: "Inside Claude",
+                    footer: "Panels are found by their accessibility labels, so they can sit anywhere in the window. Layout-aware scrolling needs Accessibility permission."
+                ) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle("Chat", isOn: $engine.claudeChat)
+                        Text("Scroll the conversation body only.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Toggle("Terminal", isOn: $engine.claudeTerminal)
+                        Text("Click deep in the terminal body and scroll.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Toggle("Files", isOn: $engine.claudeFiles)
+                        Text("Click in the file panel and scroll.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Toggle("Changes", isOn: $engine.claudeChanges)
+                        Text("Click in the changes / diff panel and scroll.")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
     private var keyboardSettings: some View {
         VStack(alignment: .leading, spacing: 8) {
             Toggle("Keyboard activity", isOn: $engine.includeKeyboard)
             Text(
                 engine.includeKeyboard
-                    ? "Silent modifiers by default (Shift/Control/Option)."
+                    ? "Silent modifiers by default (Shift/Option)."
                     : "Off — mouse & scroll only."
             )
             .font(.caption2)

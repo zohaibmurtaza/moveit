@@ -97,6 +97,9 @@ struct Humanization {
     private var slackMove: SlackMove = .channel
     private var slackBudget = 0
     private var slackCycleStarted = false
+    private var claudeSurface: ClaudeSurface = .chat
+    private var claudeBudget = 0
+    private var claudeCycleStarted = false
 
     mutating func nextIdleGap(profile: ActivityProfile, intensity: Double) -> TimeInterval {
         // Log-normal gaps: lots of short pauses, occasional long "thinking" pauses.
@@ -215,11 +218,29 @@ struct Humanization {
                 cursorSurface = enabled[0]
             }
             cursorCycleStarted = true
-            cursorBudget = Int.random(in: 3...6, using: &rng)
+            cursorBudget = Int.random(in: 10...20, using: &rng)
             switchTabs = true
         }
         cursorBudget -= 1
         return (cursorSurface, switchTabs)
+    }
+
+    /// Rotate Claude panels and stay on each for a while. The first action of a visit may switch.
+    mutating func planClaudeAction(enabled: [ClaudeSurface]) -> (surface: ClaudeSurface, switching: Bool)? {
+        guard !enabled.isEmpty else { return nil }
+        var switching = false
+        if claudeBudget <= 0 || !enabled.contains(claudeSurface) {
+            if claudeCycleStarted, let idx = enabled.firstIndex(of: claudeSurface) {
+                claudeSurface = enabled[(idx + 1) % enabled.count]
+            } else if !enabled.contains(claudeSurface) {
+                claudeSurface = enabled[0]
+            }
+            claudeCycleStarted = true
+            claudeBudget = Int.random(in: 8...16, using: &rng)
+            switching = true
+        }
+        claudeBudget -= 1
+        return (claudeSurface, switching)
     }
 
     /// Rotate Slack actions. Channel and message visits linger; search, threads, and orgs are brief.
@@ -266,29 +287,6 @@ struct Humanization {
         )
     }
 
-    mutating func cursorTerminalTabChord() -> KeyChord {
-        let forward = Bool.random(using: &rng)
-        return KeyChord(
-            modifiers: [.leftCommand, .leftShift],
-            key: forward ? .rightBracket : .leftBracket,
-            holdMs: UInt64.random(in: 35...65, using: &rng),
-            gap: 0.22,
-            label: forward ? "⌘⇧] (next terminal)" : "⌘⇧[ (previous terminal)"
-        )
-    }
-
-    /// Same arrows as file tabs. Cursor uses them for chats only while the chat pane is focused.
-    mutating func cursorChatTabChord() -> KeyChord {
-        let forward = Bool.random(using: &rng)
-        return KeyChord(
-            modifiers: [.leftOption, .leftCommand],
-            key: forward ? .rightArrow : .leftArrow,
-            holdMs: UInt64.random(in: 35...65, using: &rng),
-            gap: 0.24,
-            label: forward ? "⌥⌘→ (next chat)" : "⌥⌘← (previous chat)"
-        )
-    }
-
     mutating func localJitterPath(profile: ActivityProfile) -> [(dx: Int, dy: Int, delay: TimeInterval)] {
         let current = cursorCGPoint()
         let inset = activeVisibleInset(margin: 40)
@@ -332,8 +330,9 @@ struct Humanization {
         case .office: baseCount = Int.random(in: 10...22, using: &rng)
         case .intensive: baseCount = Int.random(in: 16...34, using: &rng)
         }
-        let count = max(4, Int((Double(baseCount) * (0.55 + intensity * 0.9)).rounded()))
-        let tickMag = max(1, Int((1.0 + intensity * 3.5).rounded()))
+        // ~40% fewer ticks and a much gentler magnitude than the original tuning.
+        let count = max(3, Int((Double(baseCount) * 0.6 * (0.55 + intensity * 0.9)).rounded()))
+        let tickMag = max(1, Int((0.6 + intensity * 1.2).rounded()))
 
         // Prefer “read down / across”, then reverse for a return pass.
         let primarySign = Bool.random(using: &rng) ? -1 : 1
@@ -375,11 +374,11 @@ struct Humanization {
 
             let pause: TimeInterval
             if i == reverseAt {
-                pause = Double.random(in: 0.35...0.9, using: &rng) // pause at “end”
+                pause = Double.random(in: 0.7...1.4, using: &rng) // pause at “end”
             } else if Double.random(in: 0...1, using: &rng) < 0.12 {
-                pause = Double.random(in: 0.22...0.55, using: &rng) // reading pause
+                pause = Double.random(in: 0.45...1.0, using: &rng) // reading pause
             } else {
-                pause = Double.random(in: 0.04...0.16, using: &rng)
+                pause = Double.random(in: 0.12...0.32, using: &rng)
             }
             events.append((dx, dy, pause))
         }
@@ -388,11 +387,11 @@ struct Humanization {
             let sign = primarySign
             switch axes {
             case .vertical, .both:
-                events.append((0, sign * tickMag, 0.08))
-                events.append((0, -sign * tickMag, 0.08))
+                events.append((0, sign * tickMag, 0.2))
+                events.append((0, -sign * tickMag, 0.2))
             case .horizontal:
-                events.append((sign * tickMag, 0, 0.08))
-                events.append((-sign * tickMag, 0, 0.08))
+                events.append((sign * tickMag, 0, 0.2))
+                events.append((-sign * tickMag, 0, 0.2))
             }
         }
         return events

@@ -120,13 +120,19 @@ final class ActivityEngine: ObservableObject {
             state.switchTargets = switchTargets
         }
     }
+    private var isAdjustingSwitchInterval = false
     /// Minimum seconds between app/window switches.
     @Published var switchIntervalMinSeconds: Double = 45 {
         didSet {
-            let clamped = min(switchIntervalMaxSeconds, max(10, switchIntervalMinSeconds))
+            let clamped = min(900, max(10, switchIntervalMinSeconds))
             if clamped != switchIntervalMinSeconds {
                 switchIntervalMinSeconds = clamped
                 return
+            }
+            if !isAdjustingSwitchInterval, switchIntervalMinSeconds > switchIntervalMaxSeconds {
+                isAdjustingSwitchInterval = true
+                switchIntervalMaxSeconds = switchIntervalMinSeconds
+                isAdjustingSwitchInterval = false
             }
             UserDefaults.standard.set(switchIntervalMinSeconds, forKey: Keys.switchIntervalMin)
             state.switchIntervalMinSeconds = switchIntervalMinSeconds
@@ -135,17 +141,34 @@ final class ActivityEngine: ObservableObject {
     /// Maximum seconds between app/window switches.
     @Published var switchIntervalMaxSeconds: Double = 180 {
         didSet {
-            let clamped = max(switchIntervalMinSeconds, min(900, switchIntervalMaxSeconds))
+            let clamped = min(900, max(10, switchIntervalMaxSeconds))
             if clamped != switchIntervalMaxSeconds {
                 switchIntervalMaxSeconds = clamped
                 return
+            }
+            if !isAdjustingSwitchInterval, switchIntervalMaxSeconds < switchIntervalMinSeconds {
+                isAdjustingSwitchInterval = true
+                switchIntervalMinSeconds = switchIntervalMaxSeconds
+                isAdjustingSwitchInterval = false
             }
             UserDefaults.standard.set(switchIntervalMaxSeconds, forKey: Keys.switchIntervalMax)
             state.switchIntervalMaxSeconds = switchIntervalMaxSeconds
         }
     }
+    /// Minimum seconds between tab switches (browser tabs, Cursor file opens, Claude panel clicks).
+    @Published var tabSwitchIntervalMinSeconds: Double = 40 {
+        didSet {
+            let clamped = min(180, max(10, tabSwitchIntervalMinSeconds))
+            if clamped != tabSwitchIntervalMinSeconds {
+                tabSwitchIntervalMinSeconds = clamped
+                return
+            }
+            UserDefaults.standard.set(tabSwitchIntervalMinSeconds, forKey: Keys.tabSwitchIntervalMin)
+            state.tabSwitchIntervalMinSeconds = tabSwitchIntervalMinSeconds
+        }
+    }
     /// Reading-scroll strength (tick count / magnitude).
-    @Published var scrollIntensity: Double = 0.55 {
+    @Published var scrollIntensity: Double = 0.35 {
         didSet {
             let clamped = min(1.0, max(0.15, scrollIntensity))
             if clamped != scrollIntensity {
@@ -266,6 +289,13 @@ final class ActivityEngine: ObservableObject {
             state.cursorChatTabs = cursorChatTabs
         }
     }
+    /// Scroll Cursor's Agents sidebar (separate from Chat). Never clicks or sends chords.
+    @Published var cursorAgentMode: Bool = true {
+        didSet {
+            UserDefaults.standard.set(cursorAgentMode, forKey: Keys.cursorAgentMode)
+            state.cursorAgentMode = cursorAgentMode
+        }
+    }
     /// Prefer Slack and move through channels, threads, and search.
     @Published var slackModeEnabled: Bool = true {
         didSet {
@@ -316,6 +346,49 @@ final class ActivityEngine: ObservableObject {
             state.slackOrganizations = slackOrganizations
         }
     }
+    /// Prefer Claude desktop and move through its chat, terminal, files, and changes panels.
+    @Published var claudeModeEnabled: Bool = true {
+        didSet {
+            UserDefaults.standard.set(claudeModeEnabled, forKey: Keys.claudeModeEnabled)
+            state.claudeModeEnabled = claudeModeEnabled
+        }
+    }
+    /// Share of switches that stay in Claude. 0.4…0.9.
+    @Published var claudeTimeShare: Double = 0.7 {
+        didSet {
+            let clamped = min(0.9, max(0.4, claudeTimeShare))
+            if clamped != claudeTimeShare {
+                claudeTimeShare = clamped
+                return
+            }
+            UserDefaults.standard.set(claudeTimeShare, forKey: Keys.claudeTimeShare)
+            state.claudeTimeShare = claudeTimeShare
+        }
+    }
+    @Published var claudeChat: Bool = true {
+        didSet {
+            UserDefaults.standard.set(claudeChat, forKey: Keys.claudeChat)
+            state.claudeChat = claudeChat
+        }
+    }
+    @Published var claudeTerminal: Bool = true {
+        didSet {
+            UserDefaults.standard.set(claudeTerminal, forKey: Keys.claudeTerminal)
+            state.claudeTerminal = claudeTerminal
+        }
+    }
+    @Published var claudeFiles: Bool = true {
+        didSet {
+            UserDefaults.standard.set(claudeFiles, forKey: Keys.claudeFiles)
+            state.claudeFiles = claudeFiles
+        }
+    }
+    @Published var claudeChanges: Bool = true {
+        didSet {
+            UserDefaults.standard.set(claudeChanges, forKey: Keys.claudeChanges)
+            state.claudeChanges = claudeChanges
+        }
+    }
 
     private let device = VirtualHIDDevice()
     private let mouse: MouseSimulator
@@ -338,6 +411,7 @@ final class ActivityEngine: ObservableObject {
         static let allowAppNavigation = "moveit.allowAppNavigation"
         static let switchIntervalMin = "moveit.switchIntervalMin"
         static let switchIntervalMax = "moveit.switchIntervalMax"
+        static let tabSwitchIntervalMin = "moveit.tabSwitchIntervalMin"
         static let scrollIntensity = "moveit.scrollIntensity"
         static let scrollAxes = "moveit.scrollAxes"
         static let allowTabSwitching = "moveit.allowTabSwitching"
@@ -353,6 +427,7 @@ final class ActivityEngine: ObservableObject {
         static let cursorEditorTabs = "moveit.cursorEditorTabs"
         static let cursorTerminalTabs = "moveit.cursorTerminalTabs"
         static let cursorChatTabs = "moveit.cursorChatTabs"
+        static let cursorAgentMode = "moveit.cursorAgentMode"
         static let slackModeEnabled = "moveit.slackModeEnabled"
         static let slackTimeShare = "moveit.slackTimeShare"
         static let slackSwitchChats = "moveit.slackSwitchChats"
@@ -360,6 +435,12 @@ final class ActivityEngine: ObservableObject {
         static let slackScroll = "moveit.slackScroll"
         static let slackThreads = "moveit.slackThreads"
         static let slackOrganizations = "moveit.slackOrganizations"
+        static let claudeModeEnabled = "moveit.claudeModeEnabled"
+        static let claudeTimeShare = "moveit.claudeTimeShare"
+        static let claudeChat = "moveit.claudeChat"
+        static let claudeTerminal = "moveit.claudeTerminal"
+        static let claudeFiles = "moveit.claudeFiles"
+        static let claudeChanges = "moveit.claudeChanges"
     }
 
     init() {
@@ -400,7 +481,17 @@ final class ActivityEngine: ObservableObject {
         let savedMax = UserDefaults.standard.object(forKey: Keys.switchIntervalMax) as? Double
         switchIntervalMinSeconds = savedMin ?? 45
         switchIntervalMaxSeconds = savedMax ?? 180
-        scrollIntensity = UserDefaults.standard.object(forKey: Keys.scrollIntensity) as? Double ?? 0.55
+        tabSwitchIntervalMinSeconds = UserDefaults.standard.object(forKey: Keys.tabSwitchIntervalMin) as? Double ?? 40
+        // One-time migrate: prior default 0.55 felt too fast with the old tick timing.
+        if !UserDefaults.standard.bool(forKey: "moveit.scrollIntensity.v2") {
+            UserDefaults.standard.set(true, forKey: "moveit.scrollIntensity.v2")
+            if UserDefaults.standard.object(forKey: Keys.scrollIntensity) == nil
+                || (UserDefaults.standard.object(forKey: Keys.scrollIntensity) as? Double) == 0.55
+            {
+                UserDefaults.standard.set(0.35, forKey: Keys.scrollIntensity)
+            }
+        }
+        scrollIntensity = UserDefaults.standard.object(forKey: Keys.scrollIntensity) as? Double ?? 0.35
         if let axesRaw = UserDefaults.standard.string(forKey: Keys.scrollAxes),
            let axes = ScrollAxisMode(rawValue: axesRaw) {
             scrollAxes = axes
@@ -426,6 +517,7 @@ final class ActivityEngine: ObservableObject {
         cursorEditorTabs = UserDefaults.standard.object(forKey: Keys.cursorEditorTabs) as? Bool ?? true
         cursorTerminalTabs = UserDefaults.standard.object(forKey: Keys.cursorTerminalTabs) as? Bool ?? true
         cursorChatTabs = UserDefaults.standard.object(forKey: Keys.cursorChatTabs) as? Bool ?? true
+        cursorAgentMode = UserDefaults.standard.object(forKey: Keys.cursorAgentMode) as? Bool ?? true
         slackModeEnabled = UserDefaults.standard.object(forKey: Keys.slackModeEnabled) as? Bool ?? true
         slackTimeShare = UserDefaults.standard.object(forKey: Keys.slackTimeShare) as? Double ?? 0.7
         slackSwitchChats = UserDefaults.standard.object(forKey: Keys.slackSwitchChats) as? Bool ?? true
@@ -433,16 +525,26 @@ final class ActivityEngine: ObservableObject {
         slackScroll = UserDefaults.standard.object(forKey: Keys.slackScroll) as? Bool ?? true
         slackThreads = UserDefaults.standard.object(forKey: Keys.slackThreads) as? Bool ?? true
         slackOrganizations = UserDefaults.standard.object(forKey: Keys.slackOrganizations) as? Bool ?? false
+        claudeModeEnabled = UserDefaults.standard.object(forKey: Keys.claudeModeEnabled) as? Bool ?? true
+        claudeTimeShare = UserDefaults.standard.object(forKey: Keys.claudeTimeShare) as? Double ?? 0.7
+        claudeChat = UserDefaults.standard.object(forKey: Keys.claudeChat) as? Bool ?? true
+        claudeTerminal = UserDefaults.standard.object(forKey: Keys.claudeTerminal) as? Bool ?? true
+        claudeFiles = UserDefaults.standard.object(forKey: Keys.claudeFiles) as? Bool ?? true
+        claudeChanges = UserDefaults.standard.object(forKey: Keys.claudeChanges) as? Bool ?? true
 
         publishSettingsToState()
         state.scheduleNextSwitch()
+        state.scheduleNextTabSwitch()
         installGlobalHotkeys()
     }
 
     func start() {
         guard !isRunning else { return }
         state.cancelFlag = false
+        // Settings freeze at Start: publish once, then the worker keeps its own snapshot.
+        publishSettingsToState()
         state.scheduleNextSwitch()
+        state.scheduleNextTabSwitch()
         let startedBackend = device.start()
         backend = startedBackend
         guard device.isReady else {
@@ -465,7 +567,6 @@ final class ActivityEngine: ObservableObject {
         upcomingEvents = []
         resampleEffectiveIntensity(force: true)
         startUITicker()
-        publishSettingsToState()
 
         let thread = Thread { [weak self] in
             self?.runLoop()
@@ -509,6 +610,7 @@ final class ActivityEngine: ObservableObject {
         state.switchTargets = switchTargets
         state.switchIntervalMinSeconds = switchIntervalMinSeconds
         state.switchIntervalMaxSeconds = switchIntervalMaxSeconds
+        state.tabSwitchIntervalMinSeconds = tabSwitchIntervalMinSeconds
         state.scrollIntensity = scrollIntensity
         state.scrollAxes = scrollAxes
         state.allowTabSwitching = allowTabSwitching
@@ -524,6 +626,7 @@ final class ActivityEngine: ObservableObject {
         state.cursorEditorTabs = cursorEditorTabs
         state.cursorTerminalTabs = cursorTerminalTabs
         state.cursorChatTabs = cursorChatTabs
+        state.cursorAgentMode = cursorAgentMode
         state.slackModeEnabled = slackModeEnabled
         state.slackTimeShare = slackTimeShare
         state.slackSwitchChats = slackSwitchChats
@@ -531,6 +634,12 @@ final class ActivityEngine: ObservableObject {
         state.slackScroll = slackScroll
         state.slackThreads = slackThreads
         state.slackOrganizations = slackOrganizations
+        state.claudeModeEnabled = claudeModeEnabled
+        state.claudeTimeShare = claudeTimeShare
+        state.claudeChat = claudeChat
+        state.claudeTerminal = claudeTerminal
+        state.claudeFiles = claudeFiles
+        state.claudeChanges = claudeChanges
     }
 
     private func startUITicker() {
@@ -540,6 +649,7 @@ final class ActivityEngine: ObservableObject {
             DispatchQueue.main.async {
                 guard self.isRunning else { return }
                 self.resampleEffectiveIntensityIfNeeded()
+                // Keep worker settings live so slider changes (idle wait, etc.) apply without Stop/Start.
                 self.publishSettingsToState()
                 self.userIdleSeconds = Int(self.idleMonitor.secondsSinceUserActivity)
                 if self.phase == .simulating {
@@ -597,11 +707,12 @@ final class ActivityEngine: ObservableObject {
 
     private func runLoop() {
         var human = Humanization()
+        var settings = state.snapshot()
         var currentPhase: WorkRhythm = human.nextWorkRhythm(current: nil)
         var phaseStartedAt = Date()
         var phaseDuration = human.rhythmPhaseDuration()
         var nextMicroBreak = Date().addingTimeInterval(
-            human.nextMicroBreakDelay(frequency: state.microBreakFrequency)
+            human.nextMicroBreakDelay(frequency: settings.microBreakFrequency)
         )
 
         DispatchQueue.main.async { [weak self] in
@@ -615,9 +726,11 @@ final class ActivityEngine: ObservableObject {
                     self?.resampleEffectiveIntensity(force: true)
                 }
             }
+            // Re-read settings every cycle so UI changes apply live (no Stop/Start needed).
+            settings = state.snapshot()
 
             // Shift work rhythm phase when its duration expires.
-            if state.adaptiveRhythmsEnabled,
+            if settings.adaptiveRhythmsEnabled,
                Date().timeIntervalSince(phaseStartedAt) >= phaseDuration
             {
                 currentPhase = human.nextWorkRhythm(current: currentPhase)
@@ -632,19 +745,14 @@ final class ActivityEngine: ObservableObject {
             // switch that was claimed while still waiting for idle.
             clearUpcoming()
 
-            var settings = state.snapshot()
-            let cursorWanted = settings.cursorModeEnabled && CursorActivity.isRunning
-            let slackWanted = settings.slackModeEnabled && SlackActivity.isRunning
-            let insideDedicated = (cursorWanted && CursorActivity.isFrontmost())
-                || (slackWanted && SlackActivity.isFrontmost())
-            if (cursorWanted || slackWanted) && !insideDedicated {
-                state.ensureSwitchWithin(16)
-            }
             setPhase(.waitingForIdle)
             beginEvent(.waiting, "Waiting \(Int(settings.idleDebounceSeconds))s idle…")
 
-            if waitForUserIdle(seconds: settings.idleDebounceSeconds) { break }
+            if waitForUserIdle() { break }
             if state.cancelFlag { break }
+
+            // Fresh settings after idle — user may have changed intensity / scroll / targets.
+            settings = state.snapshot()
 
             // ─── Micro-break ───
             if settings.microBreaksEnabled, Date() >= nextMicroBreak {
@@ -665,8 +773,6 @@ final class ActivityEngine: ObservableObject {
                 continue
             }
 
-            // Fresh settings after idle — user may have changed intensity / scroll / targets.
-            settings = state.snapshot()
             let rhythm: WorkRhythm = settings.adaptiveRhythmsEnabled ? currentPhase : .mixed
             setPhase(.simulating)
             refillUpcoming(settings: settings, rhythm: rhythm, human: &human)
@@ -678,6 +784,8 @@ final class ActivityEngine: ObservableObject {
                 settings = state.snapshot()
                 refillUpcoming(settings: settings, rhythm: rhythm, human: &human)
                 let next = popUpcoming() ?? planEvent(settings: settings, rhythm: rhythm, human: &human)
+                // App / tab / Cursor / Claude switches are followed by a longer settle gap.
+                var switched = false
 
                 switch next.kind {
                 case .appSwitch:
@@ -686,21 +794,35 @@ final class ActivityEngine: ObservableObject {
                         performActivateCursor()
                     } else if next.title == SlackActivity.focusEventTitle {
                         performActivateSlack()
+                    } else if next.title == ClaudeActivity.focusEventTitle {
+                        performActivateClaude()
                     } else {
                         performRestrictedNavigation(settings: settings, human: &human)
                     }
                     clearUpcoming()
+                    switched = true
                 case .tabSwitch:
                     if settings.slackModeEnabled, SlackActivity.isFrontmost() {
                         beginEvent(.slack, SlackMove.channel.eventTitle(switching: true))
                         performSlack(move: .channel, switching: true, settings: settings, human: &human)
+                        switched = true
                     } else if settings.cursorModeEnabled, CursorActivity.isFrontmost() {
                         let layout = CursorActivity.layout()
                         let surface: CursorSurface = layout.has(.editor) ? .editor : (layout.has(.chat) ? .chat : .terminal)
                         beginEvent(.cursor, surface.eventTitle(switching: true))
-                        performCursor(
+                        switched = performCursor(
                             surface: surface,
                             switchTabs: true,
+                            settings: settings,
+                            human: &human
+                        )
+                    } else if settings.claudeModeEnabled, ClaudeActivity.isFrontmost() {
+                        let layout = ClaudeActivity.layout()
+                        let surface: ClaudeSurface = layout.has(.files) ? .files : (layout.has(.chat) ? .chat : .terminal)
+                        beginEvent(.claude, surface.eventTitle(switching: true))
+                        switched = performClaude(
+                            surface: surface,
+                            switching: true,
                             settings: settings,
                             human: &human
                         )
@@ -714,6 +836,7 @@ final class ActivityEngine: ObservableObject {
                         if canSend {
                             beginEvent(next)
                             performTabSwitch(settings: settings, human: &human)
+                            switched = true
                         } else {
                             beginEvent(.skipped, "Skipped tab (no browser front)")
                         }
@@ -721,7 +844,7 @@ final class ActivityEngine: ObservableObject {
                 case .cursor:
                     if let parsed = CursorSurface.parse(eventTitle: next.title) {
                         beginEvent(next)
-                        performCursor(
+                        switched = performCursor(
                             surface: parsed.surface,
                             switchTabs: parsed.switchTabs,
                             settings: settings,
@@ -729,6 +852,18 @@ final class ActivityEngine: ObservableObject {
                         )
                     } else {
                         beginEvent(.skipped, "Skipped Cursor action")
+                    }
+                case .claude:
+                    if let parsed = ClaudeSurface.parse(eventTitle: next.title) {
+                        beginEvent(next)
+                        switched = performClaude(
+                            surface: parsed.surface,
+                            switching: parsed.switching,
+                            settings: settings,
+                            human: &human
+                        )
+                    } else {
+                        beginEvent(.skipped, "Skipped Claude action")
                     }
                 case .slack:
                     if let parsed = SlackMove.parse(eventTitle: next.title) {
@@ -750,10 +885,17 @@ final class ActivityEngine: ObservableObject {
                         if settings.slackModeEnabled, SlackActivity.isFrontmost() {
                             return SlackActivity.layout()?.messages
                         }
+                        if settings.claudeModeEnabled, ClaudeActivity.isFrontmost() {
+                            let layout = ClaudeActivity.layout()
+                            return layout.interactionRect(for: .chat)
+                                ?? ClaudeSurface.allCases.lazy.compactMap { layout.interactionRect(for: $0) }.first
+                                ?? layout.window?.insetBy(dx: 36, dy: 28)
+                        }
                         guard settings.cursorModeEnabled, CursorActivity.isFrontmost() else { return nil }
                         let layout = CursorActivity.layout()
                         return layout.interactionRect(for: .editor)
                             ?? layout.interactionRect(for: .chat)
+                            ?? layout.interactionRect(for: .agent)
                             ?? layout.interactionRect(for: .terminal)
                             ?? layout.window?.insetBy(dx: 36, dy: 28)
                     }()
@@ -786,6 +928,18 @@ final class ActivityEngine: ObservableObject {
                         performSlack(move: .messages, switching: false, settings: settings, human: &human)
                         break
                     }
+                    if settings.claudeModeEnabled, ClaudeActivity.isFrontmost() {
+                        let layout = ClaudeActivity.layout()
+                        let surface: ClaudeSurface = layout.has(.chat) ? .chat : (ClaudeSurface.allCases.first { layout.has($0) } ?? .chat)
+                        beginEvent(.claude, surface.eventTitle(switching: false))
+                        performClaude(
+                            surface: surface,
+                            switching: false,
+                            settings: settings,
+                            human: &human
+                        )
+                        break
+                    }
                     if settings.cursorModeEnabled, CursorActivity.isFrontmost() {
                         let layout = CursorActivity.layout()
                         let surface: CursorSurface = layout.has(.editor) ? .editor : (layout.has(.chat) ? .chat : .terminal)
@@ -799,7 +953,12 @@ final class ActivityEngine: ObservableObject {
                         break
                     }
                     beginEvent(next)
-                    let editing = FocusSafety.isEditingText
+                    // Never type characters into Cursor, Slack, or Claude — even when
+                    // their mode toggles are off or Accessibility cannot see the field.
+                    let dedicatedFront = CursorActivity.isFrontmost()
+                        || SlackActivity.isFrontmost()
+                        || ClaudeActivity.isFrontmost()
+                    let editing = FocusSafety.isEditingText || dedicatedFront
                     let useCharacters = next.kind == .keyboard && !editing
                     if next.kind == .keyboard && editing {
                         beginEvent(.skipped, "Skipped characters (text focused)")
@@ -845,13 +1004,16 @@ final class ActivityEngine: ObservableObject {
                 }
 
                 // Between actions: cancel OR real user input aborts the burst.
-                if sleepWhileUserStillIdle(Double.random(in: 0.08...0.45)) { break }
+                // Switches get a longer settle gap so windows / panes can catch up.
+                let betweenActions = switched
+                    ? Double.random(in: 1.2...3.5)
+                    : Double.random(in: 0.08...0.45)
+                if sleepWhileUserStillIdle(betweenActions) { break }
             }
 
             markActionCompleted()
 
             // Natural gap between bursts, but abort early if the user returns.
-            settings = state.snapshot()
             let gap = human.nextIdleGap(profile: settings.profile, intensity: settings.intensity)
             _ = sleepWhileUserStillIdle(gap)
         }
@@ -891,6 +1053,17 @@ final class ActivityEngine: ObservableObject {
             selectedWindowTitles: []
         )
         let label = AppSwitching.activate(target) ?? "Focus Slack"
+        updateCurrentTitle(label)
+        _ = sleepWhileUserStillIdle(0.28)
+    }
+
+    private func performActivateClaude() {
+        let target = SwitchAppTarget(
+            bundleIdentifier: ClaudeActivity.runningBundleID ?? ClaudeActivity.bundleID,
+            displayName: "Claude",
+            selectedWindowTitles: []
+        )
+        let label = AppSwitching.activate(target) ?? "Focus Claude"
         updateCurrentTitle(label)
         _ = sleepWhileUserStillIdle(0.28)
     }
@@ -1014,95 +1187,159 @@ final class ActivityEngine: ObservableObject {
         mouse.playScroll(ticks: ticks, inject: makeInject(), isCancelled: makeCancel())
     }
 
-    /// Work inside Cursor. Never types, never presses Return/Tab, never accepts an edit.
+    /// Work inside Cursor. Never types, never presses Return/Tab, never accepts an edit,
+    /// and never sends panel/chat chords (⌘⇧[ ⌘⇧] ⌥⌘← ⌥⌘→ cycle panel tabs or fork/pin chats).
+    /// Returns true when a tab-level switch (file open / terminal focus) actually happened.
+    @discardableResult
     private func performCursor(
         surface: CursorSurface,
         switchTabs: Bool,
         settings: EngineSnapshot,
         human: inout Humanization
-    ) {
-        guard settings.cursorModeEnabled, CursorActivity.isFrontmost() else { return }
-        let allowed: Bool
-        switch surface {
-        case .editor: allowed = settings.cursorEditorTabs
-        case .terminal: allowed = settings.cursorTerminalTabs
-        case .chat: allowed = settings.cursorChatTabs
+    ) -> Bool {
+        guard settings.cursorModeEnabled, CursorActivity.isFrontmost() else { return false }
+        func isAllowed(_ candidate: CursorSurface) -> Bool {
+            switch candidate {
+            case .editor: return settings.cursorEditorTabs
+            case .terminal: return settings.cursorTerminalTabs
+            case .chat: return settings.cursorChatTabs
+            case .agent: return settings.cursorAgentMode
+            }
         }
-        guard allowed else { return }
+        guard isAllowed(surface) else { return false }
 
         var surface = surface
+        var switchTabs = switchTabs
         let layout = CursorActivity.layout()
         if !layout.has(surface) {
-            let fallback = [CursorSurface.chat, .terminal, .editor].first { candidate in
-                guard layout.has(candidate) else { return false }
-                switch candidate {
-                case .editor: return settings.cursorEditorTabs
-                case .terminal: return settings.cursorTerminalTabs
-                case .chat: return settings.cursorChatTabs
-                }
+            let fallback = [CursorSurface.agent, .chat, .terminal, .editor].first { candidate in
+                layout.has(candidate) && isAllowed(candidate)
             }
-            guard let fallback else { return }
+            guard let fallback else { return false }
             surface = fallback
             updateCurrentTitle(surface.eventTitle(switching: switchTabs))
         }
         let region = layout.interactionRect(for: surface)
 
+        // Chat and Agent are scroll-only. Files / Terminal "switching" is rate-limited
+        // by the tab-switch timer; when it is not due, just click a line / scroll.
+        if switchTabs {
+            switch surface {
+            case .editor, .terminal:
+                if !state.claimTabSwitchIfDue() {
+                    switchTabs = false
+                    updateCurrentTitle(surface.eventTitle(switching: false))
+                }
+            case .chat, .agent:
+                switchTabs = false
+            }
+        }
+        let didSwitch = switchTabs
+
         if surface == .editor {
             if switchTabs {
                 updateCurrentTitle("Cursor · Files · open")
                 revealAndOpenExplorerFile(settings: settings, human: &human)
-                if shouldAbortPlayback() { return }
+                if shouldAbortPlayback() { return didSwitch }
             } else {
                 updateCurrentTitle("Cursor · Files · line")
             }
             let clickedLine = clickEditorLine(settings: settings, human: &human)
-            if shouldAbortPlayback() || !clickedLine { return }
-            guard region != nil else { return }
+            if shouldAbortPlayback() || !clickedLine { return didSwitch }
+            guard region != nil else { return didSwitch }
             let ticks = human.readingScrollTicks(
                 profile: settings.profile,
                 intensity: settings.scrollIntensity,
                 axes: settings.scrollAxes
             )
             mouse.playScroll(ticks: ticks, inject: makeInject(), isCancelled: makeCancel())
-            return
+            return didSwitch
         }
 
-        if switchTabs {
-            switch surface {
-            case .editor:
-                break
-            case .terminal, .chat:
-                if let region {
-                    let path = human.mousePath(into: region, profile: settings.profile)
-                    let arrived = path.isEmpty
-                        ? CursorActivity.cursorIsInside(region)
-                        : mouse.play(path: path, inject: makeInject(), isCancelled: makeCancel())
-                    if shouldAbortPlayback() { return }
-                    if arrived {
-                        mouse.click(inject: makeInject())
-                        if sleepWhileUserStillIdle(0.2) { return }
-                        let chord = surface == .terminal
-                            ? human.cursorTerminalTabChord()
-                            : human.cursorChatTabChord()
-                        keyboard.playChord(chord, inject: makeInject(), isCancelled: makeCancel())
-                    }
-                }
-            }
-            if shouldAbortPlayback() { return }
+        guard let region else { return didSwitch }
+
+        // Terminal: click deep in the body (below the Problems / Debug / Terminal tab strip).
+        if surface == .terminal, switchTabs {
+            let point = CGPoint(
+                x: region.minX + region.width * CGFloat.random(in: 0.2...0.8),
+                y: region.minY + region.height * CGFloat.random(in: 0.45...0.9)
+            )
+            let clicked = moveAndClick(point, settings: settings, human: &human)
+            if shouldAbortPlayback() || !clicked { return didSwitch }
+            if sleepWhileUserStillIdle(0.25) { return didSwitch }
         }
 
-        guard let region else { return }
         let path = human.mousePath(into: region, profile: settings.profile)
         let arrived = path.isEmpty
             ? CursorActivity.cursorIsInside(region)
             : mouse.play(path: path, inject: makeInject(), isCancelled: makeCancel())
-        if shouldAbortPlayback() || !arrived { return }
+        if shouldAbortPlayback() || !arrived { return didSwitch }
         let ticks = human.readingScrollTicks(
             profile: settings.profile,
             intensity: settings.scrollIntensity,
             axes: settings.scrollAxes
         )
         mouse.playScroll(ticks: ticks, inject: makeInject(), isCancelled: makeCancel())
+        return didSwitch
+    }
+
+    /// Move around Claude desktop. Panels are located by label wherever they are.
+    /// Never types, never presses Return, never sends. Chat is scroll-only; Terminal,
+    /// Files, and Changes may take one body click when the tab-switch timer allows it.
+    /// Returns true when a click-level switch actually happened.
+    @discardableResult
+    private func performClaude(
+        surface: ClaudeSurface,
+        switching: Bool,
+        settings: EngineSnapshot,
+        human: inout Humanization
+    ) -> Bool {
+        guard settings.claudeModeEnabled, ClaudeActivity.isFrontmost() else { return false }
+        func isAllowed(_ candidate: ClaudeSurface) -> Bool {
+            switch candidate {
+            case .chat: return settings.claudeChat
+            case .terminal: return settings.claudeTerminal
+            case .files: return settings.claudeFiles
+            case .changes: return settings.claudeChanges
+            }
+        }
+        guard isAllowed(surface) else { return false }
+
+        var surface = surface
+        var switching = switching
+        let layout = ClaudeActivity.layout()
+        if !layout.has(surface) {
+            let fallback = ClaudeSurface.allCases.first { layout.has($0) && isAllowed($0) }
+            guard let fallback else { return false }
+            surface = fallback
+            updateCurrentTitle(surface.eventTitle(switching: switching))
+        }
+        if switching {
+            if surface == .chat || !state.claimTabSwitchIfDue() {
+                switching = false
+                updateCurrentTitle(surface.eventTitle(switching: false))
+            }
+        }
+        guard let region = layout.interactionRect(for: surface) else { return false }
+
+        if switching, let point = layout.clickPoint(for: surface) {
+            let clicked = moveAndClick(point, settings: settings, human: &human)
+            if shouldAbortPlayback() || !clicked { return switching }
+            if sleepWhileUserStillIdle(0.3) { return switching }
+        }
+
+        let path = human.mousePath(into: region, profile: settings.profile)
+        let arrived = path.isEmpty
+            ? ClaudeActivity.cursorIsInside(region)
+            : mouse.play(path: path, inject: makeInject(), isCancelled: makeCancel())
+        if shouldAbortPlayback() || !arrived { return switching }
+        let ticks = human.readingScrollTicks(
+            profile: settings.profile,
+            intensity: settings.scrollIntensity,
+            axes: settings.scrollAxes
+        )
+        mouse.playScroll(ticks: ticks, inject: makeInject(), isCancelled: makeCancel())
+        return switching
     }
 
     /// Show the Explorer if it is hidden, then single-click a file so it opens.
@@ -1272,6 +1509,18 @@ final class ActivityEngine: ObservableObject {
         }
     }
 
+    private enum DedicatedApp {
+        case cursor, slack, claude
+
+        var focusTitle: String {
+            switch self {
+            case .cursor: return CursorActivity.focusEventTitle
+            case .slack: return SlackActivity.focusEventTitle
+            case .claude: return ClaudeActivity.focusEventTitle
+            }
+        }
+    }
+
     private func planEvent(
         settings: EngineSnapshot,
         rhythm: WorkRhythm,
@@ -1279,52 +1528,65 @@ final class ActivityEngine: ObservableObject {
     ) -> ActivityEvent {
         let cursorRunning = settings.cursorModeEnabled && CursorActivity.isRunning
         let slackRunning = settings.slackModeEnabled && SlackActivity.isRunning
+        let claudeRunning = settings.claudeModeEnabled && ClaudeActivity.isRunning
         let cursorFront = cursorRunning && CursorActivity.isFrontmost()
         let slackFront = slackRunning && SlackActivity.isFrontmost()
+        let claudeFront = claudeRunning && ClaudeActivity.isFrontmost()
         let cursorBundle = CursorActivity.runningBundleID ?? CursorActivity.bundleID
         let slackBundle = SlackActivity.runningBundleID ?? SlackActivity.bundleID
+        let claudeBundle = ClaudeActivity.runningBundleID ?? ClaudeActivity.bundleID
         let otherTargets = settings.switchTargets.filter {
             $0.bundleIdentifier != cursorBundle
                 && $0.bundleIdentifier != CursorActivity.bundleID
                 && $0.bundleIdentifier != slackBundle
                 && $0.bundleIdentifier != SlackActivity.bundleID
+                && $0.bundleIdentifier != claudeBundle
+                && $0.bundleIdentifier != ClaudeActivity.bundleID
         }
+        let dedicatedFront = cursorFront || slackFront || claudeFront
         // While a dedicated app is in front, only the switch timer leaves it.
-        let allowKeys = settings.includeKeyboard && !cursorFront && !slackFront
+        let allowKeys = settings.includeKeyboard && !dedicatedFront
         var consumedSwitch = false
 
-        if (cursorRunning || slackRunning), state.claimSwitchIfDue() {
-            consumedSwitch = true
-            if cursorFront || slackFront {
-                let share = cursorFront ? settings.cursorTimeShare : settings.slackTimeShare
-                let leave = settings.allowAppNavigation
-                    && Double.random(in: 0...1) >= share
-                if leave {
-                    if cursorFront, slackRunning {
-                        return ActivityEvent(kind: .appSwitch, title: SlackActivity.focusEventTitle)
-                    }
-                    if slackFront, cursorRunning {
-                        return ActivityEvent(kind: .appSwitch, title: CursorActivity.focusEventTitle)
+        var runningApps: [DedicatedApp] = []
+        if cursorRunning { runningApps.append(.cursor) }
+        if slackRunning { runningApps.append(.slack) }
+        if claudeRunning { runningApps.append(.claude) }
+        func share(of app: DedicatedApp) -> Double {
+            switch app {
+            case .cursor: return settings.cursorTimeShare
+            case .slack: return settings.slackTimeShare
+            case .claude: return settings.claudeTimeShare
+            }
+        }
+        let frontApp: DedicatedApp? = cursorFront ? .cursor : (slackFront ? .slack : (claudeFront ? .claude : nil))
+
+        // App switches happen ONLY when the scheduled switch timer is due.
+        // Time share controls how often we *return* to Cursor/Slack/Claude when elsewhere —
+        // it must NOT keep us parked in Claude past min/max switch interval.
+        if !runningApps.isEmpty, state.isSwitchDue() {
+            if let frontApp {
+                // Timer fired while in a dedicated app → leave if there is anywhere to go.
+                let otherDedicated = runningApps.filter { $0 != frontApp }
+                let canLeave = settings.allowAppNavigation
+                    && (!otherDedicated.isEmpty || !otherTargets.isEmpty)
+                if canLeave, state.claimSwitchIfDue() {
+                    consumedSwitch = true
+                    if let other = otherDedicated.randomElement() {
+                        return ActivityEvent(kind: .appSwitch, title: other.focusTitle)
                     }
                     if let name = otherTargets.randomElement()?.displayName {
                         return ActivityEvent(kind: .appSwitch, title: "Switch → \(name)")
                     }
                 }
-            } else {
+            } else if state.claimSwitchIfDue() {
+                consumedSwitch = true
+                let bestShare = runningApps.map(share(of:)).max() ?? 0.7
                 let goDedicated = otherTargets.isEmpty
                     || !settings.allowAppNavigation
-                    || Double.random(in: 0...1) < max(settings.cursorTimeShare, settings.slackTimeShare)
-                if goDedicated {
-                    if cursorRunning && slackRunning {
-                        let title = Bool.random()
-                            ? CursorActivity.focusEventTitle
-                            : SlackActivity.focusEventTitle
-                        return ActivityEvent(kind: .appSwitch, title: title)
-                    }
-                    if cursorRunning {
-                        return ActivityEvent(kind: .appSwitch, title: CursorActivity.focusEventTitle)
-                    }
-                    return ActivityEvent(kind: .appSwitch, title: SlackActivity.focusEventTitle)
+                    || Double.random(in: 0...1) < bestShare
+                if goDedicated, let app = runningApps.randomElement() {
+                    return ActivityEvent(kind: .appSwitch, title: app.focusTitle)
                 }
                 if let name = otherTargets.randomElement()?.displayName {
                     return ActivityEvent(kind: .appSwitch, title: "Switch → \(name)")
@@ -1353,12 +1615,28 @@ final class ActivityEngine: ObservableObject {
             }
         }
 
+        if claudeFront {
+            let panes = ClaudeActivity.layout()
+            var enabled: [ClaudeSurface] = []
+            if settings.claudeChat, panes.has(.chat) { enabled.append(.chat) }
+            if settings.claudeTerminal, panes.has(.terminal) { enabled.append(.terminal) }
+            if settings.claudeFiles, panes.has(.files) { enabled.append(.files) }
+            if settings.claudeChanges, panes.has(.changes) { enabled.append(.changes) }
+            if Double.random(in: 0...1) < 0.86, let plan = human.planClaudeAction(enabled: enabled) {
+                return ActivityEvent(
+                    kind: .claude,
+                    title: plan.surface.eventTitle(switching: plan.switching)
+                )
+            }
+        }
+
         if cursorFront {
             let panes = CursorActivity.layout()
             var enabled: [CursorSurface] = []
             if settings.cursorEditorTabs, panes.has(.editor) { enabled.append(.editor) }
             if settings.cursorTerminalTabs, panes.has(.terminal) { enabled.append(.terminal) }
             if settings.cursorChatTabs, panes.has(.chat) { enabled.append(.chat) }
+            if settings.cursorAgentMode, panes.has(.agent) { enabled.append(.agent) }
             if Double.random(in: 0...1) < 0.86, let plan = human.planCursorAction(enabled: enabled) {
                 return ActivityEvent(
                     kind: .cursor,
@@ -1376,23 +1654,19 @@ final class ActivityEngine: ObservableObject {
             return ActivityEvent(kind: .appSwitch, title: "Switch → \(name)")
         }
 
-        // Browser chords stay out of Cursor. ⌘1–9 there focuses editor groups.
-        if !cursorFront, !slackFront, settings.allowTabSwitching {
+        // Browser chords stay out of Cursor, Slack, and Claude. ⌘1–9 there focuses editor groups.
+        // Tab switches are rate-limited by the tab-switch timer; not due means skip the event.
+        if !dedicatedFront, settings.allowTabSwitching {
             let tabChance: Double
             if settings.adaptiveRhythmsEnabled {
                 tabChance = rhythm.weights.tabSwitch * (0.6 + settings.intensity * 0.6)
             } else {
                 tabChance = 0.18 + settings.intensity * 0.12
             }
-            if Double.random(in: 0...1) < tabChance {
+            if Double.random(in: 0...1) < tabChance, state.claimTabSwitchIfDue() {
                 return ActivityEvent(kind: .tabSwitch, title: "Browser tab")
             }
         }
-
-        let allowUnscheduledSwitch = !cursorRunning
-            && !slackRunning
-            && settings.allowAppNavigation
-            && !settings.switchTargets.isEmpty
 
         if settings.adaptiveRhythmsEnabled {
             let w = rhythm.weights
@@ -1412,10 +1686,6 @@ final class ActivityEngine: ObservableObject {
                     return ActivityEvent(kind: .keyboard, title: settings.naturalTypingEnabled ? "Typing" : "Key taps")
                 }
                 return ActivityEvent(kind: .silentKeys, title: "Silent keys")
-            }
-            if allowUnscheduledSwitch {
-                let name = settings.switchTargets.randomElement()?.displayName ?? "app"
-                return ActivityEvent(kind: .appSwitch, title: "Switch → \(name)")
             }
             return ActivityEvent(kind: .mouse, title: "Mouse move")
         }
@@ -1439,19 +1709,23 @@ final class ActivityEngine: ObservableObject {
             }
             return ActivityEvent(kind: .silentKeys, title: "Silent keys")
         }
-        if allowUnscheduledSwitch {
-            let name = settings.switchTargets.randomElement()?.displayName ?? "app"
-            return ActivityEvent(kind: .appSwitch, title: "Switch → \(name)")
-        }
         _ = human
         return ActivityEvent(kind: .mouse, title: "Mouse move")
     }
 
+    /// Wait until the user has been idle for the current debounce setting.
+    /// Re-reads `idleDebounceSeconds` live so slider changes apply without Stop/Start.
     /// Returns true if cancelled.
-    private func waitForUserIdle(seconds: TimeInterval) -> Bool {
+    private func waitForUserIdle() -> Bool {
+        var lastAnnounced = -1
         while !state.cancelFlag {
+            let required = Int(state.idleDebounceSeconds)
+            if required != lastAnnounced {
+                lastAnnounced = required
+                beginEvent(.waiting, "Waiting \(required)s idle…")
+            }
             let idle = idleMonitor.secondsSinceUserActivity
-            if idle >= seconds {
+            if idle >= state.idleDebounceSeconds {
                 return false
             }
             Thread.sleep(forTimeInterval: 0.1)
@@ -1543,39 +1817,49 @@ final class ActivityEngine: ObservableObject {
 
 }
 
-typealias EngineSnapshot = (
-    profile: ActivityProfile,
-    intensity: Double,
-    idleDebounceSeconds: Double,
-    includeKeyboard: Bool,
-    allowCharacterKeys: Bool,
-    allowAppNavigation: Bool,
-    switchTargets: [SwitchAppTarget],
-    switchIntervalMinSeconds: Double,
-    switchIntervalMaxSeconds: Double,
-    scrollIntensity: Double,
-    scrollAxes: ScrollAxisMode,
-    allowTabSwitching: Bool,
-    tabSwitchScope: TabSwitchScope,
-    microBreaksEnabled: Bool,
-    microBreakFrequency: MicroBreakFrequency,
-    adaptiveRhythmsEnabled: Bool,
-    keyboardWPM: Double,
-    naturalTypingEnabled: Bool,
-    primaryDisplayOnly: Bool,
-    cursorModeEnabled: Bool,
-    cursorTimeShare: Double,
-    cursorEditorTabs: Bool,
-    cursorTerminalTabs: Bool,
-    cursorChatTabs: Bool,
-    slackModeEnabled: Bool,
-    slackTimeShare: Double,
-    slackSwitchChats: Bool,
-    slackSearch: Bool,
-    slackScroll: Bool,
-    slackThreads: Bool,
-    slackOrganizations: Bool
-)
+/// Frozen copy of the settings the worker plans and performs with.
+/// Captured when the engine starts — changes apply on the next Start.
+struct EngineSnapshot {
+    var profile: ActivityProfile
+    var intensity: Double
+    var idleDebounceSeconds: Double
+    var includeKeyboard: Bool
+    var allowCharacterKeys: Bool
+    var allowAppNavigation: Bool
+    var switchTargets: [SwitchAppTarget]
+    var switchIntervalMinSeconds: Double
+    var switchIntervalMaxSeconds: Double
+    var tabSwitchIntervalMinSeconds: Double
+    var scrollIntensity: Double
+    var scrollAxes: ScrollAxisMode
+    var allowTabSwitching: Bool
+    var tabSwitchScope: TabSwitchScope
+    var microBreaksEnabled: Bool
+    var microBreakFrequency: MicroBreakFrequency
+    var adaptiveRhythmsEnabled: Bool
+    var keyboardWPM: Double
+    var naturalTypingEnabled: Bool
+    var primaryDisplayOnly: Bool
+    var cursorModeEnabled: Bool
+    var cursorTimeShare: Double
+    var cursorEditorTabs: Bool
+    var cursorTerminalTabs: Bool
+    var cursorChatTabs: Bool
+    var cursorAgentMode: Bool
+    var slackModeEnabled: Bool
+    var slackTimeShare: Double
+    var slackSwitchChats: Bool
+    var slackSearch: Bool
+    var slackScroll: Bool
+    var slackThreads: Bool
+    var slackOrganizations: Bool
+    var claudeModeEnabled: Bool
+    var claudeTimeShare: Double
+    var claudeChat: Bool
+    var claudeTerminal: Bool
+    var claudeFiles: Bool
+    var claudeChanges: Bool
+}
 
 /// Thread-safe settings/cancel flag shared with the worker thread.
 final class EngineState: @unchecked Sendable {
@@ -1590,7 +1874,8 @@ final class EngineState: @unchecked Sendable {
     private var _switchTargets: [SwitchAppTarget] = []
     private var _switchIntervalMinSeconds: Double = 45
     private var _switchIntervalMaxSeconds: Double = 180
-    private var _scrollIntensity: Double = 0.55
+    private var _tabSwitchIntervalMinSeconds: Double = 40
+    private var _scrollIntensity: Double = 0.35
     private var _scrollAxes: ScrollAxisMode = .both
     private var _allowTabSwitching = true
     private var _tabSwitchScope: TabSwitchScope = .browsersOnly
@@ -1605,6 +1890,7 @@ final class EngineState: @unchecked Sendable {
     private var _cursorEditorTabs = true
     private var _cursorTerminalTabs = true
     private var _cursorChatTabs = true
+    private var _cursorAgentMode = true
     private var _slackModeEnabled = true
     private var _slackTimeShare: Double = 0.7
     private var _slackSwitchChats = true
@@ -1612,7 +1898,14 @@ final class EngineState: @unchecked Sendable {
     private var _slackScroll = true
     private var _slackThreads = true
     private var _slackOrganizations = false
+    private var _claudeModeEnabled = true
+    private var _claudeTimeShare: Double = 0.7
+    private var _claudeChat = true
+    private var _claudeTerminal = true
+    private var _claudeFiles = true
+    private var _claudeChanges = true
     private var _nextSwitchDate = Date()
+    private var _nextTabSwitchDate = Date()
 
     var cancelFlag: Bool {
         get { lock.withLock { _cancelFlag } }
@@ -1662,6 +1955,11 @@ final class EngineState: @unchecked Sendable {
     var switchIntervalMaxSeconds: Double {
         get { lock.withLock { _switchIntervalMaxSeconds } }
         set { lock.withLock { _switchIntervalMaxSeconds = newValue } }
+    }
+
+    var tabSwitchIntervalMinSeconds: Double {
+        get { lock.withLock { _tabSwitchIntervalMinSeconds } }
+        set { lock.withLock { _tabSwitchIntervalMinSeconds = newValue } }
     }
 
     var scrollIntensity: Double {
@@ -1739,6 +2037,11 @@ final class EngineState: @unchecked Sendable {
         set { lock.withLock { _cursorChatTabs = newValue } }
     }
 
+    var cursorAgentMode: Bool {
+        get { lock.withLock { _cursorAgentMode } }
+        set { lock.withLock { _cursorAgentMode = newValue } }
+    }
+
     var slackModeEnabled: Bool {
         get { lock.withLock { _slackModeEnabled } }
         set { lock.withLock { _slackModeEnabled = newValue } }
@@ -1774,15 +2077,34 @@ final class EngineState: @unchecked Sendable {
         set { lock.withLock { _slackOrganizations = newValue } }
     }
 
-    /// If the next app switch is farther out than `seconds`, pull it in.
-    /// Used so Cursor focus returns quickly after idle without shortening a linger.
-    func ensureSwitchWithin(_ seconds: TimeInterval) {
-        lock.lock()
-        defer { lock.unlock() }
-        let latest = Date().addingTimeInterval(seconds)
-        guard _nextSwitchDate > latest else { return }
-        let lower = min(8, seconds)
-        _nextSwitchDate = Date().addingTimeInterval(Double.random(in: lower...max(lower, seconds)))
+    var claudeModeEnabled: Bool {
+        get { lock.withLock { _claudeModeEnabled } }
+        set { lock.withLock { _claudeModeEnabled = newValue } }
+    }
+
+    var claudeTimeShare: Double {
+        get { lock.withLock { _claudeTimeShare } }
+        set { lock.withLock { _claudeTimeShare = newValue } }
+    }
+
+    var claudeChat: Bool {
+        get { lock.withLock { _claudeChat } }
+        set { lock.withLock { _claudeChat = newValue } }
+    }
+
+    var claudeTerminal: Bool {
+        get { lock.withLock { _claudeTerminal } }
+        set { lock.withLock { _claudeTerminal = newValue } }
+    }
+
+    var claudeFiles: Bool {
+        get { lock.withLock { _claudeFiles } }
+        set { lock.withLock { _claudeFiles = newValue } }
+    }
+
+    var claudeChanges: Bool {
+        get { lock.withLock { _claudeChanges } }
+        set { lock.withLock { _claudeChanges = newValue } }
     }
 
     func isSwitchDue() -> Bool {
@@ -1813,40 +2135,71 @@ final class EngineState: @unchecked Sendable {
         _nextSwitchDate = Date().addingTimeInterval(wait)
     }
 
+    /// If a tab switch is due, schedule the next one and return true.
+    /// Gates browser tabs, Cursor file opens, and Claude panel clicks.
+    @discardableResult
+    func claimTabSwitchIfDue() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard Date() >= _nextTabSwitchDate else { return false }
+        scheduleNextTabSwitchLocked()
+        return true
+    }
+
+    func scheduleNextTabSwitch() {
+        lock.lock()
+        defer { lock.unlock() }
+        scheduleNextTabSwitchLocked()
+    }
+
+    private func scheduleNextTabSwitchLocked() {
+        let lo = max(1, _tabSwitchIntervalMinSeconds)
+        let wait = Double.random(in: lo...(lo * 1.6))
+        _nextTabSwitchDate = Date().addingTimeInterval(wait)
+    }
+
     func snapshot() -> EngineSnapshot {
         lock.withLock {
-            (
-                _profile,
-                _intensity,
-                _idleDebounceSeconds,
-                _includeKeyboard,
-                _allowCharacterKeys,
-                _allowAppNavigation,
-                _switchTargets,
-                _switchIntervalMinSeconds,
-                _switchIntervalMaxSeconds,
-                _scrollIntensity,
-                _scrollAxes,
-                _allowTabSwitching,
-                _tabSwitchScope,
-                _microBreaksEnabled,
-                _microBreakFrequency,
-                _adaptiveRhythmsEnabled,
-                _keyboardWPM,
-                _naturalTypingEnabled,
-                _primaryDisplayOnly,
-                _cursorModeEnabled,
-                _cursorTimeShare,
-                _cursorEditorTabs,
-                _cursorTerminalTabs,
-                _cursorChatTabs,
-                _slackModeEnabled,
-                _slackTimeShare,
-                _slackSwitchChats,
-                _slackSearch,
-                _slackScroll,
-                _slackThreads,
-                _slackOrganizations
+            EngineSnapshot(
+                profile: _profile,
+                intensity: _intensity,
+                idleDebounceSeconds: _idleDebounceSeconds,
+                includeKeyboard: _includeKeyboard,
+                allowCharacterKeys: _allowCharacterKeys,
+                allowAppNavigation: _allowAppNavigation,
+                switchTargets: _switchTargets,
+                switchIntervalMinSeconds: _switchIntervalMinSeconds,
+                switchIntervalMaxSeconds: _switchIntervalMaxSeconds,
+                tabSwitchIntervalMinSeconds: _tabSwitchIntervalMinSeconds,
+                scrollIntensity: _scrollIntensity,
+                scrollAxes: _scrollAxes,
+                allowTabSwitching: _allowTabSwitching,
+                tabSwitchScope: _tabSwitchScope,
+                microBreaksEnabled: _microBreaksEnabled,
+                microBreakFrequency: _microBreakFrequency,
+                adaptiveRhythmsEnabled: _adaptiveRhythmsEnabled,
+                keyboardWPM: _keyboardWPM,
+                naturalTypingEnabled: _naturalTypingEnabled,
+                primaryDisplayOnly: _primaryDisplayOnly,
+                cursorModeEnabled: _cursorModeEnabled,
+                cursorTimeShare: _cursorTimeShare,
+                cursorEditorTabs: _cursorEditorTabs,
+                cursorTerminalTabs: _cursorTerminalTabs,
+                cursorChatTabs: _cursorChatTabs,
+                cursorAgentMode: _cursorAgentMode,
+                slackModeEnabled: _slackModeEnabled,
+                slackTimeShare: _slackTimeShare,
+                slackSwitchChats: _slackSwitchChats,
+                slackSearch: _slackSearch,
+                slackScroll: _slackScroll,
+                slackThreads: _slackThreads,
+                slackOrganizations: _slackOrganizations,
+                claudeModeEnabled: _claudeModeEnabled,
+                claudeTimeShare: _claudeTimeShare,
+                claudeChat: _claudeChat,
+                claudeTerminal: _claudeTerminal,
+                claudeFiles: _claudeFiles,
+                claudeChanges: _claudeChanges
             )
         }
     }

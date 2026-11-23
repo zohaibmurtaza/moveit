@@ -10,7 +10,31 @@ Marketing version and build number live in [`Config/Version.xcconfig`](Config/Ve
 ## [Unreleased]
 
 ### Planned
-- Optional signed/notarized release workflow notes for maintainers
+- Developer ID + notarized releases so Accessibility / Screen Recording survive Sparkle updates (ad-hoc zips currently re-key TCC each build)
+
+## [1.3.0] - 2026-11-23
+
+### Added
+- **Claude desktop behavior** — Apps → Claude (`com.anthropic.claudefordesktop`) with return-share and Chat / Terminal / Files / Changes; panels found by accessibility label wherever they sit; pointer/scroll/body clicks only (no typing, Return, or send)
+- **Cursor Agent mode** — separate Agent surface (scroll transcript only); toggle under Apps → Cursor
+- **Tab switch interval** — minimum time between browser tab switches, Cursor file opens, and Claude panel clicks (default 40s)
+- Debug local signing helper (`Scripts/ensure-local-signing.sh`) so Dev Accessibility / Screen Recording survive rebuilds
+
+### Changed
+- Gentler reading scrolls; default scroll intensity 35%
+- Cursor lingers longer on a surface; longer settle after app/tab switches
+- Cursor terminal / chat avoid header chrome; no panel or chat chords
+- Menu-bar Start/Stop stays fixed; live status details render below the buttons
+- “Return to Cursor/Slack/Claude” sliders only bias coming back — leave when the Switching timer fires
+
+### Fixed
+- Screen Recording grant stuck / Quit & Reopen only returning to the menu bar — hard process exit on relaunch
+- App switches ignoring min interval (`ensureSwitchWithin` + unscheduled paths removed)
+- Dedicated apps (Claude/Cursor/Slack) lingering past switch max via time-share coin flips
+- Cursor Problems/Debug/Terminal thrashing and chat fork/pin from ⌘⇧[ ] / ⌥⌘←→
+- Terminal `cccccc` spam — quieter keys, stronger Focus Safety, no character typing in Cursor/Slack/Claude
+- Switch-interval Slider crash when min and max both hit 10s
+- Settings (idle wait, etc.) apply live without Stop → Start
 
 ## [1.2.0] - 2026-10-28
 

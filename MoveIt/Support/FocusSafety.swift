@@ -16,7 +16,17 @@ enum FocusSafety {
         return result
     }
 
+    /// Cursor is Electron: its terminal / editor often hides from Accessibility, so while it
+    /// is frontmost treat every character key as unsafe (belt and suspenders).
+    private static func frontmostIsCursor() -> Bool {
+        guard let front = NSWorkspace.shared.frontmostApplication else { return false }
+        if front.bundleIdentifier == CursorActivity.bundleID { return true }
+        if let id = front.bundleIdentifier, id.hasPrefix("com.todesktop.") { return true }
+        return front.localizedName == "Cursor"
+    }
+
     private static func isEditingTextOnMain() -> Bool {
+        if frontmostIsCursor() { return true }
         let system = AXUIElementCreateSystemWide()
         var focusedRef: CFTypeRef?
         guard AXUIElementCopyAttributeValue(
@@ -76,8 +86,17 @@ enum FocusSafety {
         if let roleDescription = stringAttribute(element, kAXRoleDescriptionAttribute as String)?
             .lowercased()
         {
-            let hints = ["text", "editor", "search", "terminal", "field", "input", "area"]
+            let hints = ["text", "editor", "search", "terminal", "console", "xterm", "vte", "field", "input", "area"]
             if hints.contains(where: { roleDescription.contains($0) }) {
+                return true
+            }
+        }
+
+        // Terminals in Electron / VTE apps often only reveal themselves by label.
+        let terminalHints = ["terminal", "console", "xterm", "vte"]
+        for attribute in [kAXTitleAttribute as String, kAXDescriptionAttribute as String] {
+            if let text = stringAttribute(element, attribute)?.lowercased(),
+               terminalHints.contains(where: { text.contains($0) }) {
                 return true
             }
         }

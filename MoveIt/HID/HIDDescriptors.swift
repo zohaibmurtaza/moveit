@@ -156,8 +156,9 @@ enum SafeHIDKey: UInt8 {
     }
 
     /// Modifiers that rarely type characters or fire single-key app shortcuts.
-    /// (No Command — that opens menus; no letters/digits/arrows.)
+    /// (No Command — that opens menus; no Control — it can disturb Electron terminals;
+    /// no letters/digits/arrows.)
     static var quietActivityKeys: [SafeHIDKey] {
-        [.leftShift, .rightShift, .leftControl, .rightControl, .leftOption, .rightOption]
+        [.leftShift, .rightShift, .leftOption, .rightOption]
     }
 }

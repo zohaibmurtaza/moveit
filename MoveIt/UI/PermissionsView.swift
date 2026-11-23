@@ -37,19 +37,24 @@ struct PermissionsView: View {
                             icon: "rectangle.dashed.badge.record",
                             title: needsRelaunch ? "Relaunch to finish Screen Recording" : "Screen Recording required",
                             detail: needsRelaunch
-                                ? "Permission is on, but macOS only applies it after a restart. Relaunch to list fullscreen windows on other Spaces."
+                                ? "You just enabled Screen Recording. macOS only applies it after a full restart of this process — click Relaunch Now."
                                 : "Needed to list window titles — including fullscreen windows on other Spaces. \(BuildIdentity.displayName) does not capture or save your screen."
                         ) {
                             if needsRelaunch {
                                 Button("Relaunch Now", action: Permissions.relaunchApp)
                                     .controlSize(.small)
+                                Button("Open Settings", action: Permissions.openScreenRecordingSettings)
+                                    .controlSize(.small)
                             } else {
                                 Button("Request Permission", action: requestScreenRecording)
                                     .controlSize(.small)
-                                if screenAttempts >= 2 {
-                                    Button("Open Settings", action: Permissions.openScreenRecordingSettings)
-                                        .controlSize(.small)
-                                }
+                                Button("Relaunch Now", action: {
+                                    Permissions.markScreenRecordingRelaunchPending()
+                                    Permissions.relaunchApp()
+                                })
+                                .controlSize(.small)
+                                Button("Open Settings", action: Permissions.openScreenRecordingSettings)
+                                    .controlSize(.small)
                             }
                         }
                     }
@@ -114,6 +119,8 @@ struct PermissionsView: View {
         } else {
             Permissions.openScreenRecordingSettings()
         }
+        // Preflight never updates live; switch UI to relaunch guidance immediately.
+        Permissions.markScreenRecordingRelaunchPending()
         refresh()
         startPolling()
     }

@@ -52,11 +52,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        // Only the in-app Quit button should kill the process.
-        // Dock → Quit / ⌘Q while the window is open just hides back to the menu bar.
+        // In-app Quit always kills the process.
         if AppAppearance.allowFullQuit {
             return .terminateNow
         }
+        // Screen Recording’s system “Quit & Reopen” also sends terminate. If we cancel it
+        // (menu-bar stay-alive), the same process keeps a sticky-false CGPreflight cache and
+        // never picks up the grant — only the UI appears to reopen.
+        if !Permissions.allowsMenuBarQuitCancel {
+            return .terminateNow
+        }
+        // Dock → Quit / ⌘Q while permissions are fine: return to the menu bar only.
         AppAppearance.dismissToMenuBar()
         return .terminateCancel
     }

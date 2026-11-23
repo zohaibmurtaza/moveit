@@ -204,6 +204,7 @@ struct ActivityStreamView: View {
         case .tabSwitch: return "Tab"
         case .cursor:
             if event.title.localizedCaseInsensitiveContains("terminal") { return "Term" }
+            if event.title.localizedCaseInsensitiveContains("agent") { return "Agent" }
             if event.title.localizedCaseInsensitiveContains("chat") { return "Chat" }
             if event.title.localizedCaseInsensitiveContains("open") { return "Open" }
             if event.title.localizedCaseInsensitiveContains("line") { return "Line" }
@@ -215,6 +216,11 @@ struct ActivityStreamView: View {
             if event.title.localizedCaseInsensitiveContains("organization") { return "Org" }
             if event.title.localizedCaseInsensitiveContains("channel") { return "Chat" }
             return "Scroll"
+        case .claude:
+            if event.title.localizedCaseInsensitiveContains("terminal") { return "Term" }
+            if event.title.localizedCaseInsensitiveContains("changes") { return "Diff" }
+            if event.title.localizedCaseInsensitiveContains("files") { return "Files" }
+            return "Chat"
         case .microBreak: return "Break"
         case .waiting: return "Wait"
         case .skipped: return "Skip"
@@ -231,6 +237,7 @@ struct ActivityStreamView: View {
         case .tabSwitch: return .teal
         case .cursor: return .green
         case .slack: return .purple
+        case .claude: return .orange
         case .microBreak: return .mint
         case .waiting: return .secondary
         case .skipped: return .secondary

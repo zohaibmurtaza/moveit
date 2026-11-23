@@ -38,6 +38,7 @@
 		A10000000000000000000021 /* AppUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000021 /* AppUpdater.swift */; };
 		A10000000000000000000023 /* CursorActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000023 /* CursorActivity.swift */; };
 		A10000000000000000000024 /* SlackActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000024 /* SlackActivity.swift */; };
+		A10000000000000000000025 /* ClaudeActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10000000000000000000025 /* ClaudeActivity.swift */; };
 		A10000000000000000000022 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = P10000000000000000000002 /* Sparkle */; };
 /* End PBXBuildFile section */
 
@@ -78,6 +79,7 @@
 		B10000000000000000000021 /* AppUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdater.swift; sourceTree = "<group>"; };
 		B10000000000000000000023 /* CursorActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CursorActivity.swift; sourceTree = "<group>"; };
 		B10000000000000000000024 /* SlackActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlackActivity.swift; sourceTree = "<group>"; };
+		B10000000000000000000025 /* ClaudeActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeActivity.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -199,6 +201,7 @@
 				B1000000000000000000001C /* AppSwitching.swift */,
 				B10000000000000000000023 /* CursorActivity.swift */,
 				B10000000000000000000024 /* SlackActivity.swift */,
+				B10000000000000000000025 /* ClaudeActivity.swift */,
 				B10000000000000000000020 /* NativeGlass.swift */,
 				B10000000000000000000021 /* AppUpdater.swift */,
 			);
@@ -314,6 +317,7 @@
 				A1000000000000000000001C /* AppSwitching.swift in Sources */,
 				A10000000000000000000023 /* CursorActivity.swift in Sources */,
 				A10000000000000000000024 /* SlackActivity.swift in Sources */,
+				A10000000000000000000025 /* ClaudeActivity.swift in Sources */,
 				A1000000000000000000001D /* AppSwitchPickerView.swift in Sources */,
 				A1000000000000000000001E /* ActivityEvent.swift in Sources */,
 				A1000000000000000000001F /* ActivityStreamView.swift in Sources */,
@@ -366,8 +370,9 @@
 				ARCHS = arm64;
 				ASSETCATALOG_COMPILER_APPICON_NAME = "moveit-icon";
 				CODE_SIGN_ENTITLEMENTS = MoveIt/MoveIt.entitlements;
-				CODE_SIGN_IDENTITY = "-";
-				CODE_SIGN_STYLE = Automatic;
+				/* Stable local cert — ad-hoc CDHash changes every rebuild and breaks TCC. */
+				CODE_SIGN_IDENTITY = "MoveIt Local Signing";
+				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -379,6 +384,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				MOVEIT_DISPLAY_NAME = "MoveIt Dev";
 				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CODE_SIGN_FLAGS = "--timestamp=none";
 				PRODUCT_BUNDLE_IDENTIFIER = com.moveit.MoveIt.dev;
 				PRODUCT_NAME = "MoveIt Dev";
 				SDKROOT = macosx;

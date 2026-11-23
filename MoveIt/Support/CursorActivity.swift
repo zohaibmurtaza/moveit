@@ -7,12 +7,15 @@ enum CursorSurface: String, CaseIterable {
     case editor
     case terminal
     case chat
+    /// Cursor's separate Agents sidebar (not the Chat pane).
+    case agent
 
     var label: String {
         switch self {
         case .editor: return "Files"
         case .terminal: return "Terminal"
         case .chat: return "Chat"
+        case .agent: return "Agent"
         }
     }
 
@@ -39,6 +42,7 @@ struct CursorLayout {
     var editor: CGRect?
     var terminal: CGRect?
     var chat: CGRect?
+    var agent: CGRect?
     /// Left-hand Explorer (file tree).
     var explorer: CGRect?
     /// Visible file rows inside the Explorer, in CG coordinates.
@@ -55,6 +59,7 @@ struct CursorLayout {
         case .editor: raw = editor
         case .terminal: raw = terminal
         case .chat: raw = chat
+        case .agent: raw = agent
         }
         guard var rect = raw else { return nil }
         let topFraction: CGFloat
@@ -64,11 +69,16 @@ struct CursorLayout {
             topFraction = 0.12
             bottomFraction = 0.06
         case .terminal:
-            topFraction = 0.14
+            // Clear the Problems / Output / Debug / Terminal panel tab strip.
+            topFraction = 0.28
             bottomFraction = 0.08
         case .chat:
-            topFraction = 0.12
-            bottomFraction = 0.24
+            // Clear the header (pin / fork) and the composer.
+            topFraction = 0.22
+            bottomFraction = 0.28
+        case .agent:
+            topFraction = 0.22
+            bottomFraction = 0.28
         }
         let side = min(16, rect.width * 0.06)
         let top = min(rect.height * topFraction, rect.height * 0.28)
@@ -79,6 +89,7 @@ struct CursorLayout {
         if surface == .editor {
             rect = CursorLayout.clipped(rect, awayFrom: explorer)
             rect = CursorLayout.clipped(rect, awayFrom: chat)
+            rect = CursorLayout.clipped(rect, awayFrom: agent)
             rect = CursorLayout.clipped(rect, awayFrom: terminal)
         }
         guard rect.width >= 28, rect.height >= 28 else { return nil }
@@ -285,13 +296,18 @@ enum CursorActivity {
         }
         fileRows = uniqueRows(fileRows)
 
-        let chat = bestFrame[.chat] ?? rightPane
+        let agent = bestFrame[.agent]
+        var chat = bestFrame[.chat]
+        // The right-edge column fallback must not turn the Agents sidebar into "chat".
+        if chat == nil, let rightPane, !overlaps(rightPane, agent), !overlaps(agent, rightPane) {
+            chat = rightPane
+        }
         let terminal = bestFrame[.terminal]
         var editor = bestFrame[.editor]
-        if editor == nil || overlaps(editor, chat) || overlaps(editor, terminal) {
-            editor = derivedEditor(window: window, chat: chat, terminal: terminal)
+        if editor == nil || overlaps(editor, chat) || overlaps(editor, agent) || overlaps(editor, terminal) {
+            editor = derivedEditor(window: window, chat: chat, agent: agent, terminal: terminal)
         }
-        if chat == nil, terminal == nil, editor == nil, leftPane == nil {
+        if chat == nil, agent == nil, terminal == nil, editor == nil, leftPane == nil {
             return percentageLayout(window)
         }
         return CursorLayout(
@@ -299,6 +315,7 @@ enum CursorActivity {
             editor: editor,
             terminal: terminal,
             chat: chat,
+            agent: agent,
             explorer: leftPane,
             fileRows: fileRows
         )
@@ -368,7 +385,7 @@ enum CursorActivity {
             width: min(250, window.width * 0.2),
             height: max(120, window.height - 88)
         )
-        let editor = derivedEditor(window: window, chat: chat, terminal: terminal)
+        let editor = derivedEditor(window: window, chat: chat, agent: nil, terminal: terminal)
         return CursorLayout(
             window: window,
             editor: editor,
@@ -380,20 +397,21 @@ enum CursorActivity {
 
     /// Editor column is whatever is left beside the chat and above the terminal.
     /// Returns nil when that column is gone (chat expanded over the files).
-    private static func derivedEditor(window: CGRect, chat: CGRect?, terminal: CGRect?) -> CGRect? {
+    private static func derivedEditor(window: CGRect, chat: CGRect?, agent: CGRect?, terminal: CGRect?) -> CGRect? {
         var area = window
         area.origin.y += 38
         area.size.height = max(0, area.height - 52)
         area.origin.x += 6
         area.size.width = max(0, area.width - 12)
 
-        if let chat, chat.width >= 80, chat.height >= 120 {
-            if chat.midX >= area.midX {
-                let width = chat.minX - area.minX - 8
+        for side in [chat, agent] {
+            guard let side, side.width >= 80, side.height >= 120 else { continue }
+            if side.midX >= area.midX {
+                let width = side.minX - area.minX - 8
                 guard width >= 150 else { return nil }
-                area.size.width = width
+                area.size.width = min(area.width, width)
             } else {
-                let x = chat.maxX + 8
+                let x = side.maxX + 8
                 let width = area.maxX - x
                 guard width >= 150 else { return nil }
                 area.origin.x = x
@@ -433,11 +451,15 @@ enum CursorActivity {
         .lowercased()
         guard !text.isEmpty else { return nil }
 
-        let chatName = text.contains("unified agents")
+        let agentName = text.contains("unified agents")
             || text.contains("agents sidebar")
             || text.contains("agent-sidebar")
             || text.contains("unified-agents")
-            || text.contains("aichat")
+        if agentName, frame.width >= 160, frame.height >= 180 {
+            return .agent
+        }
+
+        let chatName = text.contains("aichat")
             || text.contains("composer")
             || (text.contains("chat") && !text.contains("editor"))
         if chatName, frame.width >= 160, frame.height >= 180 {

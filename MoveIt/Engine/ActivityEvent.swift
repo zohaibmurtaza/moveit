@@ -9,6 +9,7 @@ enum ActivityKind: String, Codable {
     case tabSwitch
     case cursor
     case slack
+    case claude
     case microBreak
     case waiting
     case skipped
@@ -23,6 +24,7 @@ enum ActivityKind: String, Codable {
         case .tabSwitch: return "rectangle.stack"
         case .cursor: return "macwindow"
         case .slack: return "bubble.left.and.bubble.right"
+        case .claude: return "sparkles"
         case .microBreak: return "cup.and.saucer"
         case .waiting: return "hourglass"
         case .skipped: return "hand.raised"
@@ -39,6 +41,7 @@ enum ActivityKind: String, Codable {
         case .tabSwitch: return "teal"
         case .cursor: return "green"
         case .slack: return "purple"
+        case .claude: return "orange"
         case .microBreak: return "mint"
         case .waiting: return "secondary"
         case .skipped: return "secondary"
