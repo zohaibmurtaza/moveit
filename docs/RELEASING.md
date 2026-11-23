@@ -29,7 +29,13 @@ Bump with:
 
 - Feed URL / public key live in `MoveIt/Resources/Info.plist` (`SUFeedURL`, `SUPublicEDKey`)  
 - Private EdDSA key is in the maintainer **Keychain** under account **`moveit`** (created with Sparkle’s `generate_keys --account moveit`)  
+- **Back up the private key** after generation (Keychain is wiped by a Mac reset):
+  ```bash
+  ./build/SourcePackages/artifacts/sparkle/Sparkle/bin/generate_keys --account moveit -x ~/.config/moveit/sparkle-eddsa-private.pem
+  ```
+  Restore later with `-f ~/.config/moveit/sparkle-eddsa-private.pem`. Keep that file out of git (password manager / encrypted drive is fine).  
 - Do **not** commit private keys  
+- **Key rotation:** changing `SUPublicEDKey` only affects **new builds**. Already-installed apps keep the old public key and cannot verify updates signed with a new private key until the user installs a build that embeds the new key (one-time manual install). Replacing old GitHub Release zips is optional and only helps people who freshly download those old versions — it does not fix machines that already installed them.  
 - **MoveIt Dev** (Debug) does not check for updates — only Release `com.moveit.MoveIt`  
 - Sparkle installs updates automatically when `SUAutomaticallyUpdate` is true; users can also use **Check for Updates…**  
 

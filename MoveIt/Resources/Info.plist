@@ -40,7 +40,7 @@
 	<key>SUFeedURL</key>
 	<string>https://raw.githubusercontent.com/zohaibmurtaza/moveit/main/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string>u8ah94cLtDPnSt/ezxicUqtY0JUcUgXzjBuv1QBbXrQ=</string>
+	<string>yYf06U+karImr3mDT+Ifi54L6B+HRJ0lN4QaXOSF+e8=</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUScheduledCheckInterval</key>
